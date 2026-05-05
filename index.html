@@ -59,6 +59,11 @@
     let targetCamX = 0;
     let scaleF = 1;
     let levelInstanceId = 0;
+    let skyImg;
+
+    function preload() {
+      skyImg = loadImage('sky_clouds_new.png');
+    }
 
     function windowResized() {
       scaleF = min(windowWidth / 1280, windowHeight / 720);
@@ -744,36 +749,59 @@
 
     function drawSky() {
       let ctx = drawingContext;
-      let grad = ctx.createLinearGradient(0, 0, 0, 720);
-      grad.addColorStop(0, '#00b4db');
-      grad.addColorStop(1, '#0083b0');
-      ctx.fillStyle = grad;
-      noStroke();
-      rect(camX, 0, 1280, 720);
+      if (skyImg) {
+        // Crop 2 pixels from each edge to remove baked-in dark artifacts from the image generator
+        let sourceW = skyImg.width - 4;
+        let skyW = sourceW * (720 / skyImg.height);
+        let offsetX = ((camX * 0.1) + frameCount * 0.2) % skyW;
+        if (offsetX < 0) offsetX += skyW;
+        
+        let startX = camX - offsetX;
+        while (startX < camX + 1280) {
+            image(skyImg, Math.floor(startX), 0, Math.ceil(skyW) + 1, 720, 2, 0, sourceW, skyImg.height);
+            startX += skyW - 0.5;
+        }
+      } else {
+        let grad = ctx.createLinearGradient(0, 0, 0, 720);
+        grad.addColorStop(0, '#00b4db');
+        grad.addColorStop(1, '#0083b0');
+        ctx.fillStyle = grad;
+        noStroke();
+        rect(camX, 0, 1280, 720);
+      }
 
       push();
       translate(camX + 1280 * 0.8, 720 * 0.2);
-      let sunGrad = ctx.createRadialGradient(0, 0, 20, 0, 0, 150);
+      
+      let stretchY = 1.0 + sin(frameCount * 0.05) * 0.05;
+      let stretchX = 1.0 + cos(frameCount * 0.05) * 0.02;
+      scale(stretchX, stretchY);
+
+      let intensity = sin(frameCount * 0.05) * 20;
+      let sunGrad = ctx.createRadialGradient(0, 0, 20, 0, 0, 180 + intensity);
       sunGrad.addColorStop(0, 'rgba(255, 255, 200, 1)');
-      sunGrad.addColorStop(1, 'rgba(255, 255, 200, 0)');
+      sunGrad.addColorStop(0.3, 'rgba(255, 240, 100, 0.8)');
+      sunGrad.addColorStop(1, 'rgba(255, 200, 50, 0)');
+      
       ctx.fillStyle = sunGrad;
-      circle(0, 0, 300);
-      fill(255, 255, 220);
+      noStroke();
+      circle(0, 0, 360 + intensity * 2);
+      fill(255, 255, 230);
       circle(0, 0, 80);
+      
+      stroke(255, 240, 100, 100);
+      strokeWeight(4);
+      for (let a = 0; a < TWO_PI; a += PI/8) {
+          let rot = a + frameCount * 0.005;
+          let r1 = 60 + sin(frameCount * 0.1 + a)*5;
+          let r2 = 120 + sin(frameCount * 0.1 + a)*10;
+          line(cos(rot)*r1, sin(rot)*r1, cos(rot)*r2, sin(rot)*r2);
+      }
+      
       pop();
     }
 
     function drawBackground() {
-      fill(255, 255, 255, 220); noStroke();
-      for (let c of clouds) {
-        c.x += c.speed;
-        if (c.x > 3000) c.x = -500;
-        push(); translate(c.x, c.y); scale(c.s);
-        circle(0, 0, 60); circle(-30, 10, 45); circle(30, 10, 45);
-        circle(-15, -15, 50); circle(15, -15, 50);
-        pop();
-      }
-
       fill(80, 160, 80); noStroke();
       beginShape();
       vertex(camX, 720);
