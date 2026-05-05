@@ -1,0 +1,952 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Angry Birds Clone</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background: #000;
+      font-family: 'Arial Rounded MT Bold', 'Impact', sans-serif;
+      user-select: none;
+    }
+
+    canvas {
+      display: block;
+      margin: 0 auto;
+      background: #000;
+    }
+  </style>
+</head>
+
+<body>
+  <script>
+    const Engine = Matter.Engine,
+      World = Matter.World,
+      Bodies = Matter.Bodies,
+      Body = Matter.Body,
+      Events = Matter.Events;
+
+    let engine;
+    let world;
+
+    let gameState = 'START';
+    let currentLevel = 0;
+    let score = 0;
+    let levelStartScore = 0;
+    let levels = [];
+
+    let birds = [];
+    let pigs = [];
+    let blocks = [];
+    let particles = [];
+    let clouds = [];
+
+    let slingBase;
+    let dragBird = null;
+    let activeBird = null;
+    let isDragging = false;
+    let launchFrame = 0;
+    let maxDragDist = 100;
+
+    let camX = 0;
+    let targetCamX = 0;
+    let scaleF = 1;
+    let levelInstanceId = 0;
+
+    function windowResized() {
+      scaleF = min(windowWidth / 1280, windowHeight / 720);
+      resizeCanvas(1280 * scaleF, 720 * scaleF);
+    }
+
+    function setup() {
+      scaleF = min(windowWidth / 1280, windowHeight / 720);
+      createCanvas(1280 * scaleF, 720 * scaleF);
+      textFont('Arial Rounded MT Bold');
+
+      engine = Engine.create({ positionIterations: 8, velocityIterations: 8 });
+      world = engine.world;
+
+      slingBase = { x: 250, y: 570 };
+
+      setupCollisions();
+
+      for (let i = 0; i < 15; i++) {
+        clouds.push({
+          x: random(-500, 3000),
+          y: random(50, 350),
+          s: random(0.5, 1.5),
+          speed: random(0.2, 0.5)
+        });
+      }
+
+      levels = [
+        {
+          birds: ['red', 'red', 'yellow', 'blue', 'red', 'yellow', 'blue', 'red', 'yellow'],
+          pigs: [{ x: 950, y: 660, r: 20 }],
+          blocks: [
+            { x: 900, y: 630, w: 20, h: 100, type: 'wood' },
+            { x: 1000, y: 630, w: 20, h: 100, type: 'wood' },
+            { x: 950, y: 570, w: 140, h: 20, type: 'wood' }
+          ]
+        },
+        {
+          birds: ['blue', 'yellow', 'red', 'red', 'blue', 'yellow', 'red', 'red', 'red'],
+          pigs: [{ x: 900, y: 660, r: 20 }, { x: 1100, y: 660, r: 20 }],
+          blocks: [
+            { x: 850, y: 630, w: 20, h: 100, type: 'stone' },
+            { x: 950, y: 630, w: 20, h: 100, type: 'stone' },
+            { x: 900, y: 570, w: 140, h: 20, type: 'wood' },
+            { x: 900, y: 540, w: 20, h: 40, type: 'glass' },
+
+            { x: 1050, y: 630, w: 20, h: 100, type: 'stone' },
+            { x: 1150, y: 630, w: 20, h: 100, type: 'stone' },
+            { x: 1100, y: 570, w: 140, h: 20, type: 'wood' },
+            { x: 1100, y: 540, w: 20, h: 40, type: 'glass' }
+          ]
+        },
+        {
+          birds: ['yellow', 'blue', 'yellow', 'blue', 'red', 'red', 'yellow', 'blue', 'red', 'yellow'],
+          pigs: [
+            { x: 950, y: 660, r: 20 },
+            { x: 1050, y: 660, r: 20 },
+            { x: 1000, y: 540, r: 20 }
+          ],
+          blocks: [
+            { x: 900, y: 630, w: 20, h: 100, type: 'stone' },
+            { x: 1000, y: 630, w: 20, h: 100, type: 'wood' },
+            { x: 1100, y: 630, w: 20, h: 100, type: 'stone' },
+            { x: 1000, y: 570, w: 240, h: 20, type: 'stone' },
+            { x: 950, y: 510, w: 20, h: 100, type: 'glass' },
+            { x: 1050, y: 510, w: 20, h: 100, type: 'glass' },
+            { x: 1000, y: 450, w: 140, h: 20, type: 'wood' },
+            { x: 1000, y: 420, w: 40, h: 40, type: 'wood' }
+          ]
+        }
+      ];
+    }
+
+    function loadLevel(idx) {
+      levelInstanceId++;
+      currentLevel = idx;
+
+      if (idx === 0 && gameState === 'START') {
+        score = 0;
+        levelStartScore = 0;
+      } else if (gameState === 'WAITING_WIN' || gameState === 'WIN') {
+        levelStartScore = score;
+      } else {
+        score = levelStartScore;
+      }
+
+      World.clear(world);
+      Engine.clear(engine);
+      blocks = [];
+      pigs = [];
+      birds = [];
+      particles = [];
+
+      let ground = Bodies.rectangle(1500, 700, 6000, 40, { isStatic: true, friction: 1.0 });
+      let leftWall = Bodies.rectangle(-500, 360, 100, 2000, { isStatic: true });
+      let rightWall = Bodies.rectangle(3500, 360, 100, 2000, { isStatic: true });
+      World.add(world, [ground, leftWall, rightWall]);
+
+      let levelData = levels[idx];
+
+      for (let b of levelData.blocks) {
+        let opts = { angle: b.angle || 0 };
+        if (b.type === 'wood') opts = { ...opts, density: 0.002, friction: 0.8, restitution: 0.2 };
+        if (b.type === 'stone') opts = { ...opts, density: 0.005, friction: 0.9, restitution: 0.1 };
+        if (b.type === 'glass') opts = { ...opts, density: 0.001, friction: 0.5, restitution: 0.3 };
+
+        let body = Bodies.rectangle(b.x, b.y, b.w, b.h, opts);
+        let hp = b.type === 'stone' ? 300 : (b.type === 'wood' ? 100 : 50);
+        let block = { body: body, type: b.type, w: b.w, h: b.h, health: hp, maxHealth: hp };
+        body.gameObject = block;
+        blocks.push(block);
+        World.add(world, body);
+      }
+
+      for (let p of levelData.pigs) {
+        let body = Bodies.circle(p.x, p.y, p.r, { density: 0.002, friction: 0.8, restitution: 0.4 });
+        let pig = { body: body, r: p.r, health: 100, maxHealth: 100, isPig: true };
+        body.gameObject = pig;
+        pigs.push(pig);
+        World.add(world, body);
+      }
+
+      for (let i = 0; i < levelData.birds.length; i++) {
+        let type = levelData.birds[i];
+        let r = (type === 'blue') ? 12 : (type === 'yellow' ? 18 : 16);
+        let bird = { type: type, r: r, state: 'queue', abilityUsed: false, isBird: true };
+        birds.push(bird);
+      }
+
+      gameState = 'PLAYING';
+      camX = 0;
+      isDragging = false;
+      activeBird = null;
+      dragBird = null;
+
+      setTimeout(loadNextBird, 500);
+    }
+
+    function loadNextBird() {
+      let next = birds.find(b => b.state === 'queue');
+      if (next) {
+        next.state = 'slingshot';
+        dragBird = next;
+        let body = Bodies.circle(slingBase.x, slingBase.y, next.r, { density: 0.004, friction: 0.8, restitution: 0.3 });
+        body.gameObject = next;
+        next.body = body;
+        Body.setStatic(next.body, true);
+        World.add(world, body);
+      }
+    }
+
+    function setupCollisions() {
+      Events.on(engine, 'collisionStart', function (event) {
+        for (let pair of event.pairs) {
+          let bodyA = pair.bodyA;
+          let bodyB = pair.bodyB;
+
+          let vx = bodyA.velocity.x - bodyB.velocity.x;
+          let vy = bodyA.velocity.y - bodyB.velocity.y;
+          let relV = Math.sqrt(vx * vx + vy * vy);
+
+          let force = relV * 8;
+
+          if (force > 20) {
+            if (bodyA.gameObject && bodyA.gameObject.health !== undefined) {
+              bodyA.gameObject.health -= force;
+            }
+            if (bodyB.gameObject && bodyB.gameObject.health !== undefined) {
+              bodyB.gameObject.health -= force;
+            }
+          }
+        }
+      });
+    }
+
+    function checkWinLose() {
+      if (gameState === 'PLAYING') {
+        if (pigs.length === 0) {
+          gameState = 'WAITING_WIN';
+          let capturedId = levelInstanceId;
+          setTimeout(() => {
+            if (levelInstanceId !== capturedId) return;
+            gameState = 'WIN';
+            score += birds.filter(b => b.state === 'queue').length * 10000;
+            createConfetti();
+          }, 1500);
+        } else if (birds.filter(b => b.state === 'queue' || b.state === 'slingshot' || b.state === 'flying').length === 0) {
+          gameState = 'WAITING_LOSE';
+          let capturedId = levelInstanceId;
+          setTimeout(() => {
+            if (levelInstanceId !== capturedId) return;
+            if (pigs.length > 0) {
+              gameState = 'LOSE';
+            } else {
+              gameState = 'WIN';
+              score += birds.filter(b => b.state === 'queue').length * 10000;
+              createConfetti();
+            }
+          }, 3000);
+        }
+      }
+    }
+
+    function checkBirdStop() {
+      if (activeBird && activeBird.state === 'flying') {
+        let speed = activeBird.body.speed;
+        let angular = Math.abs(activeBird.body.angularVelocity);
+        let p = activeBird.body.position;
+
+        if ((speed < 0.5 && angular < 0.1 && frameCount - launchFrame > 150) ||
+          p.x > 3500 || p.x < -500 || p.y > 1000) {
+          activeBird.state = 'used';
+          World.remove(world, activeBird.body);
+          activeBird = null;
+          setTimeout(() => {
+            if (gameState === 'PLAYING' || gameState === 'WAITING_WIN' || gameState === 'WAITING_LOSE') {
+              loadNextBird();
+            }
+          }, 1000);
+        }
+      }
+    }
+
+    function useAbility() {
+      if (!activeBird || activeBird.abilityUsed || activeBird.state !== 'flying') return;
+      activeBird.abilityUsed = true;
+
+      let v = activeBird.body.velocity;
+      let p = activeBird.body.position;
+
+      if (activeBird.type === 'yellow') {
+        let mag = Math.sqrt(v.x * v.x + v.y * v.y);
+        let boost = 20;
+        if (mag > 0.1) {
+          Body.setVelocity(activeBird.body, { x: (v.x / mag) * boost, y: (v.y / mag) * boost });
+        }
+        createParticles(p.x, p.y, [255, 255, 0], 20);
+      }
+      else if (activeBird.type === 'blue') {
+        for (let dy of [-15, 15]) {
+          let bBody = Bodies.circle(p.x, p.y + dy, 12, { density: 0.004, friction: 0.5, restitution: 0.4 });
+          Body.setVelocity(bBody, { x: v.x, y: v.y + dy / 2 });
+          let bird = { body: bBody, type: 'blue', r: 12, state: 'flying', abilityUsed: true, isBird: true };
+          bBody.gameObject = bird;
+          birds.push(bird);
+          World.add(world, bBody);
+        }
+        activeBird.r = 12;
+        Body.setVelocity(activeBird.body, { x: v.x, y: v.y });
+        createParticles(p.x, p.y, [100, 200, 255], 20);
+      }
+    }
+
+    function updateCamera() {
+      if (gameState !== 'START') {
+        let targetX = 0;
+        if (activeBird && activeBird.state === 'flying') {
+          targetX = activeBird.body.position.x - 300;
+        }
+        targetX = constrain(targetX, 0, 1000);
+        camX = lerp(camX, targetX, 0.1);
+      }
+    }
+
+    function getScaledMouse() {
+      return {
+        x: mouseX / scaleF,
+        y: mouseY / scaleF
+      };
+    }
+
+    function mousePressed() {
+      let sm = getScaledMouse();
+      let mx = sm.x + camX;
+      let my = sm.y;
+
+      if (gameState === 'START') {
+        if (abs(sm.x - 640) < 100 && abs(sm.y - 360) < 40) {
+          loadLevel(0);
+        }
+        return;
+      }
+
+      if (gameState === 'WIN' || gameState === 'LOSE') {
+        if (abs(sm.x - 640) < 125 && abs(sm.y - 410) < 40) {
+          if (gameState === 'WIN') {
+            if (currentLevel < levels.length - 1) loadLevel(currentLevel + 1);
+            else { gameState = 'START'; score = 0; }
+          } else {
+            loadLevel(currentLevel);
+          }
+        }
+        return;
+      }
+
+      if (gameState === 'PLAYING' || gameState === 'WAITING_WIN' || gameState === 'WAITING_LOSE') {
+        if (sm.x > 1280 - 140 && sm.x < 1280 - 20 && sm.y > 20 && sm.y < 60) {
+          loadLevel(currentLevel);
+          return;
+        }
+
+        if (dragBird && dist(mx, my, dragBird.body.position.x, dragBird.body.position.y) < dragBird.r * 2.5) {
+          isDragging = true;
+        } else if (activeBird && activeBird.state === 'flying' && !activeBird.abilityUsed) {
+          useAbility();
+        }
+      }
+    }
+
+    function mouseDragged() {
+      if (isDragging && dragBird) {
+        let sm = getScaledMouse();
+        let mx = sm.x + camX;
+        let my = sm.y;
+
+        let base = createVector(slingBase.x, slingBase.y);
+        let m = createVector(mx, my);
+        let d = p5.Vector.sub(m, base);
+        if (d.mag() > maxDragDist) {
+          d.setMag(maxDragDist);
+        }
+        let target = p5.Vector.add(base, d);
+        Body.setPosition(dragBird.body, { x: target.x, y: target.y });
+        Body.setVelocity(dragBird.body, { x: 0, y: 0 });
+      }
+    }
+
+    function mouseReleased() {
+      if (isDragging && dragBird) {
+        isDragging = false;
+        let base = createVector(slingBase.x, slingBase.y);
+        let pos = createVector(dragBird.body.position.x, dragBird.body.position.y);
+        let d = p5.Vector.sub(base, pos);
+
+        if (d.mag() > 20) {
+          dragBird.state = 'flying';
+          activeBird = dragBird;
+          Body.setStatic(dragBird.body, false);
+          dragBird = null;
+          launchFrame = frameCount;
+
+          let launchForce = 0.001 * activeBird.body.mass;
+          Body.applyForce(activeBird.body, activeBird.body.position, { x: d.x * launchForce, y: d.y * launchForce });
+          Body.setAngularVelocity(activeBird.body, d.x > 0 ? 0.1 : -0.1);
+        } else {
+          Body.setPosition(dragBird.body, { x: base.x, y: base.y });
+        }
+      }
+    }
+
+    function createParticles(x, y, color, count) {
+      for (let i = 0; i < count; i++) {
+        particles.push({
+          x: x + random(-10, 10), y: y + random(-10, 10),
+          vx: random(-4, 4), vy: random(-4, 4),
+          life: 255, color: color, size: random(4, 12), isConfetti: false
+        });
+      }
+    }
+
+    function createConfetti() {
+      for (let i = 0; i < 150; i++) {
+        particles.push({
+          x: camX + 640 + random(-400, 400), y: random(-200, 0),
+          vx: random(-3, 3), vy: random(2, 6),
+          life: 400, color: [random(100, 255), random(100, 255), random(100, 255)],
+          size: random(8, 16), isConfetti: true
+        });
+      }
+    }
+
+    function updateDrawParticles() {
+      for (let i = particles.length - 1; i >= 0; i--) {
+        let p = particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        if (p.isConfetti) {
+          p.vy += 0.05;
+          p.x += sin(frameCount * 0.1 + p.life) * 2;
+          p.life -= 1.5;
+        } else {
+          p.vy += 0.2;
+          p.life -= 5;
+        }
+
+        noStroke();
+        fill(p.color[0], p.color[1], p.color[2], min(p.life, 255));
+        if (p.isConfetti) {
+          push();
+          translate(p.x, p.y);
+          rotate(frameCount * 0.1 + p.life);
+          rect(0, 0, p.size, p.size);
+          pop();
+        } else {
+          circle(p.x, p.y, p.size);
+        }
+
+        if (p.life <= 0) particles.splice(i, 1);
+      }
+    }
+
+    function drawBirdIcon(type, x, y, s) {
+      push();
+      translate(x, y);
+      scale(s);
+      let r = (type === 'blue') ? 12 : (type === 'yellow' ? 18 : 16);
+      drawingContext.shadowBlur = 8;
+      drawingContext.shadowColor = 'rgba(0,0,0,0.5)';
+      if (type === 'red') {
+        fill(150, 20, 20); noStroke();
+        rect(-r - 5, -2, 10, 4, 2); rect(-r - 4, -8, 8, 4, 2); rect(-r - 4, 4, 8, 4, 2);
+        let grad = drawingContext.createRadialGradient(-r * 0.3, -r * 0.3, r * 0.1, 0, 0, r);
+        grad.addColorStop(0, '#ff4b4b'); grad.addColorStop(1, '#a60000');
+        drawingContext.fillStyle = grad; circle(0, 0, r * 2);
+        fill(250, 240, 220); arc(0, 0, r * 2, r * 2, 0, PI);
+        fill(180, 20, 20); ellipse(2, -r - 3, 8, 12); ellipse(-2, -r - 2, 6, 10);
+        fill(255); stroke(150, 0, 0); strokeWeight(1); circle(-6, -4, 11); circle(6, -4, 11);
+        fill(0); noStroke(); circle(-4, -4, 4); circle(8, -4, 4);
+        fill(50, 0, 0); rectMode(CENTER);
+        push(); rotate(PI / 6); rect(-6, -12, 16, 5, 2); pop();
+        push(); rotate(-PI / 6); rect(6, -12, 16, 5, 2); pop();
+        fill(255, 200, 0); stroke(200, 100, 0); strokeWeight(1); triangle(0, -2, 14, 4, 0, 10); line(0, 4, 14, 4);
+      } else if (type === 'yellow') {
+        fill(0); noStroke();
+        rect(-r - 4, 2, 12, 4, 2); rect(-r - 2, 8, 10, 4, 2);
+        let grad = drawingContext.createRadialGradient(0, 0, r * 0.2, 0, 0, r * 1.5);
+        grad.addColorStop(0, '#ffe100'); grad.addColorStop(1, '#d48d00');
+        drawingContext.fillStyle = grad; triangle(-r * 1.2, r, r * 1.2, r, 0, -r * 1.5);
+        fill(255); arc(0, r * 0.5, r * 2.4, r, 0, PI);
+        fill(0); ellipse(0, -r * 1.6, 8, 16); ellipse(-5, -r * 1.4, 6, 12);
+        fill(255); stroke(200, 100, 0); strokeWeight(1); circle(-7, 0, 12); circle(7, 0, 12);
+        fill(0); noStroke(); circle(-5, 0, 4); circle(9, 0, 4);
+        fill(200, 50, 50); rectMode(CENTER);
+        push(); rotate(PI / 6); rect(-7, -8, 16, 4, 2); pop();
+        push(); rotate(-PI / 6); rect(7, -8, 16, 4, 2); pop();
+        fill(255, 150, 0); stroke(200, 80, 0); strokeWeight(1); triangle(0, 2, 16, 8, 0, 14); line(0, 8, 16, 8);
+      } else if (type === 'blue') {
+        fill(20, 100, 200); noStroke(); rect(-r - 3, 0, 6, 3, 2);
+        let grad = drawingContext.createRadialGradient(-r * 0.3, -r * 0.3, r * 0.1, 0, 0, r);
+        grad.addColorStop(0, '#66c2ff'); grad.addColorStop(1, '#0073e6');
+        drawingContext.fillStyle = grad; circle(0, 0, r * 2);
+        fill(200, 230, 255); arc(0, 0, r * 2, r * 2, 0, PI);
+        fill(20, 100, 200); ellipse(0, -r - 2, 6, 8);
+        fill(255); stroke(0, 100, 200); strokeWeight(1); circle(-5, -2, 9); circle(5, -2, 9);
+        fill(0); noStroke(); circle(-4, -2, 3); circle(6, -2, 3);
+        fill(255, 200, 0); stroke(200, 100, 0); strokeWeight(1); triangle(0, 0, 10, 3, 0, 6); line(0, 3, 10, 3);
+      }
+      fill(255, 255, 255, 50); noStroke(); arc(0, 0, r * 1.6, r * 1.6, PI, TWO_PI);
+      pop();
+    }
+
+    function drawBird(bird) {
+      push();
+      translate(bird.body.position.x, bird.body.position.y);
+      rotate(bird.body.angle);
+
+      drawingContext.shadowBlur = 12;
+      drawingContext.shadowColor = 'rgba(0,0,0,0.5)';
+
+      if (bird.type === 'red') {
+        fill(150, 20, 20); noStroke();
+        rect(-bird.r - 5, -2, 10, 4, 2);
+        rect(-bird.r - 4, -8, 8, 4, 2);
+        rect(-bird.r - 4, 4, 8, 4, 2);
+
+        let grad = drawingContext.createRadialGradient(-bird.r * 0.3, -bird.r * 0.3, bird.r * 0.1, 0, 0, bird.r);
+        grad.addColorStop(0, '#ff4b4b');
+        grad.addColorStop(1, '#a60000');
+        drawingContext.fillStyle = grad;
+        circle(0, 0, bird.r * 2);
+
+        fill(250, 240, 220);
+        arc(0, 0, bird.r * 2, bird.r * 2, 0, PI);
+
+        fill(180, 20, 20);
+        ellipse(2, -bird.r - 3, 8, 12);
+        ellipse(-2, -bird.r - 2, 6, 10);
+
+        fill(255); stroke(150, 0, 0); strokeWeight(1);
+        circle(-6, -4, 11); circle(6, -4, 11);
+        fill(0); noStroke();
+        circle(-4, -4, 4); circle(8, -4, 4);
+
+        fill(50, 0, 0); rectMode(CENTER);
+        push(); rotate(PI / 6); rect(-6, -12, 16, 5, 2); pop();
+        push(); rotate(-PI / 6); rect(6, -12, 16, 5, 2); pop();
+
+        fill(255, 200, 0); stroke(200, 100, 0); strokeWeight(1);
+        triangle(0, -2, 14, 4, 0, 10);
+        line(0, 4, 14, 4);
+      } else if (bird.type === 'yellow') {
+        fill(0); noStroke();
+        rect(-bird.r - 4, 2, 12, 4, 2);
+        rect(-bird.r - 2, 8, 10, 4, 2);
+
+        let grad = drawingContext.createRadialGradient(0, 0, bird.r * 0.2, 0, 0, bird.r * 1.5);
+        grad.addColorStop(0, '#ffe100');
+        grad.addColorStop(1, '#d48d00');
+        drawingContext.fillStyle = grad;
+        triangle(-bird.r * 1.2, bird.r, bird.r * 1.2, bird.r, 0, -bird.r * 1.5);
+
+        fill(255);
+        arc(0, bird.r * 0.5, bird.r * 2.4, bird.r, 0, PI);
+
+        fill(0);
+        ellipse(0, -bird.r * 1.6, 8, 16);
+        ellipse(-5, -bird.r * 1.4, 6, 12);
+
+        fill(255); stroke(200, 100, 0); strokeWeight(1);
+        circle(-7, 0, 12); circle(7, 0, 12);
+        fill(0); noStroke();
+        circle(-5, 0, 4); circle(9, 0, 4);
+
+        fill(200, 50, 50); rectMode(CENTER);
+        push(); rotate(PI / 6); rect(-7, -8, 16, 4, 2); pop();
+        push(); rotate(-PI / 6); rect(7, -8, 16, 4, 2); pop();
+
+        fill(255, 150, 0); stroke(200, 80, 0); strokeWeight(1);
+        triangle(0, 2, 16, 8, 0, 14);
+        line(0, 8, 16, 8);
+      } else if (bird.type === 'blue') {
+        fill(20, 100, 200); noStroke();
+        rect(-bird.r - 3, 0, 6, 3, 2);
+
+        let grad = drawingContext.createRadialGradient(-bird.r * 0.3, -bird.r * 0.3, bird.r * 0.1, 0, 0, bird.r);
+        grad.addColorStop(0, '#66c2ff');
+        grad.addColorStop(1, '#0073e6');
+        drawingContext.fillStyle = grad;
+        circle(0, 0, bird.r * 2);
+
+        fill(200, 230, 255);
+        arc(0, 0, bird.r * 2, bird.r * 2, 0, PI);
+
+        fill(20, 100, 200);
+        ellipse(0, -bird.r - 2, 6, 8);
+
+        fill(255); stroke(0, 100, 200); strokeWeight(1);
+        circle(-5, -2, 9); circle(5, -2, 9);
+        fill(0); noStroke();
+        circle(-4, -2, 3); circle(6, -2, 3);
+
+        fill(255, 200, 0); stroke(200, 100, 0); strokeWeight(1);
+        triangle(0, 0, 10, 3, 0, 6);
+        line(0, 3, 10, 3);
+      }
+
+      fill(255, 255, 255, 50); noStroke();
+      arc(0, 0, bird.r * 1.6, bird.r * 1.6, PI, TWO_PI);
+
+      pop();
+    }
+
+    function drawPig(pig) {
+      push();
+      translate(pig.body.position.x, pig.body.position.y);
+      rotate(pig.body.angle);
+
+      drawingContext.shadowBlur = 12;
+      drawingContext.shadowColor = 'rgba(0,0,0,0.4)';
+
+      let hpRatio = pig.health / pig.maxHealth;
+
+      fill(map(hpRatio, 0, 1, 100, 80), 180, 40); noStroke();
+      push(); translate(-pig.r * 0.6, -pig.r * 0.6); rotate(-PI / 4); ellipse(0, 0, 12, 18);
+      fill(0, 0, 0, 40); ellipse(0, 0, 6, 10); pop();
+      push(); translate(pig.r * 0.6, -pig.r * 0.6); rotate(PI / 4); ellipse(0, 0, 12, 18);
+      fill(0, 0, 0, 40); ellipse(0, 0, 6, 10); pop();
+
+      let grad = drawingContext.createRadialGradient(-pig.r * 0.2, -pig.r * 0.2, pig.r * 0.2, 0, 0, pig.r);
+      let baseColor = map(hpRatio, 0, 1, 150, 100);
+      grad.addColorStop(0, `rgb(${baseColor + 40}, 240, 80)`);
+      grad.addColorStop(1, `rgb(${baseColor}, 180, 40)`);
+      drawingContext.fillStyle = grad;
+      circle(0, 0, pig.r * 2);
+
+      fill(map(hpRatio, 0, 1, 120, 90), 220, 60);
+      stroke(map(hpRatio, 0, 1, 80, 50), 160, 30); strokeWeight(1.5);
+      ellipse(0, 4, pig.r * 1.2, pig.r * 0.9);
+
+      fill(30, 80, 0); noStroke();
+      ellipse(-4, 4, 6, 8); ellipse(4, 4, 6, 8);
+
+      fill(255); stroke(50, 120, 20); strokeWeight(1);
+      circle(-9, -6, 10); circle(9, -6, 10);
+      fill(0); noStroke();
+      circle(-9 + (1 - hpRatio) * 5, -6, 4);
+      circle(9 - (1 - hpRatio) * 5, -6, 4);
+
+      fill(50, 100, 20);
+      rectMode(CENTER);
+      push(); rotate(PI / 8); rect(-9, -13, 10, 3, 2); pop();
+      push(); rotate(-PI / 8); rect(9, -13, 10, 3, 2); pop();
+
+      if (hpRatio < 0.6) {
+        fill(50, 50, 0, 120);
+        circle(-12, 12, 12);
+        circle(12, -12, 16);
+        fill(240, 230, 200); stroke(150); strokeWeight(1);
+        push(); translate(0, -14); rotate(PI / 6); rect(0, 0, 16, 6); pop();
+      }
+
+      fill(255, 255, 255, 50); noStroke();
+      arc(0, 0, pig.r * 1.6, pig.r * 1.6, PI, TWO_PI);
+
+      pop();
+    }
+
+    function drawBlock(block) {
+      push();
+      translate(block.body.position.x, block.body.position.y);
+      rotate(block.body.angle);
+
+      drawingContext.shadowBlur = 8;
+      drawingContext.shadowColor = 'rgba(0,0,0,0.5)';
+
+      let hpRatio = block.health / block.maxHealth;
+      let w = block.w, h = block.h;
+      rectMode(CENTER);
+
+      if (block.type === 'wood') {
+        fill(190, 130, 70); stroke(100, 50, 20); strokeWeight(2);
+        rect(0, 0, w, h);
+
+        noStroke(); fill(255, 255, 255, 40);
+        rect(0, -h / 2 + 3, w - 2, 6);
+        fill(0, 0, 0, 30);
+        rect(0, h / 2 - 3, w - 2, 6);
+
+        stroke(130, 70, 30); strokeWeight(1.5);
+        noFill();
+        for (let i = -w / 2 + 6; i < w / 2; i += 8) {
+          beginShape();
+          for (let y = -h / 2 + 2; y <= h / 2 - 2; y += 10) {
+            vertex(i + sin(y * 0.1 + i) * 2, y);
+          }
+          endShape();
+        }
+        if (h > 40 && w > 10) {
+          fill(140, 80, 40); stroke(100, 50, 20);
+          ellipse(0, h / 4, min(w * 0.6, 12), min(h * 0.3, 16));
+        }
+      } else if (block.type === 'stone') {
+        fill(150); stroke(80); strokeWeight(2);
+        rect(0, 0, w, h);
+
+        noStroke(); fill(200); rect(0, -h / 2 + 3, w - 2, 6);
+        fill(100); rect(0, h / 2 - 3, w - 2, 6);
+        fill(180); rect(-w / 2 + 3, 0, 6, h - 2);
+        fill(90); rect(w / 2 - 3, 0, 6, h - 2);
+
+        fill(110); noStroke();
+        circle(-w / 4, -h / 4, min(w, h) * 0.25);
+        circle(w / 4, h / 4, min(w, h) * 0.15);
+        circle(w / 3, -h / 5, min(w, h) * 0.1);
+      } else if (block.type === 'glass') {
+        fill(180, 230, 255, 140); stroke(255, 255, 255, 220); strokeWeight(2);
+        rect(0, 0, w, h);
+
+        noStroke(); fill(255, 255, 255, 180);
+        beginShape();
+        vertex(-w / 2 + 2, -h / 2 + 2); vertex(w / 2 - 12, -h / 2 + 2); vertex(-w / 2 + 2, h / 2 - 12);
+        endShape(CLOSE);
+
+        fill(255, 255, 255, 100);
+        beginShape();
+        vertex(w / 2 - 6, h / 2 - 2); vertex(w / 2 - 2, h / 2 - 6); vertex(w / 2 - 2, h / 2 - 2);
+        endShape(CLOSE);
+      }
+
+      if (hpRatio < 0.6) {
+        stroke(0, 0, 0, 180); strokeWeight(2); noFill();
+        beginShape();
+        vertex(-w / 4, -h / 4); vertex(0, 0); vertex(w / 4, -h / 8); vertex(w / 3, h / 3);
+        endShape();
+        if (hpRatio < 0.3) {
+          beginShape();
+          vertex(w / 4, -h / 4); vertex(0, 0); vertex(-w / 3, h / 4);
+          endShape();
+        }
+      }
+      pop();
+    }
+
+    function drawSky() {
+      let ctx = drawingContext;
+      let grad = ctx.createLinearGradient(0, 0, 0, 720);
+      grad.addColorStop(0, '#00b4db');
+      grad.addColorStop(1, '#0083b0');
+      ctx.fillStyle = grad;
+      noStroke();
+      rect(camX, 0, 1280, 720);
+
+      push();
+      translate(camX + 1280 * 0.8, 720 * 0.2);
+      let sunGrad = ctx.createRadialGradient(0, 0, 20, 0, 0, 150);
+      sunGrad.addColorStop(0, 'rgba(255, 255, 200, 1)');
+      sunGrad.addColorStop(1, 'rgba(255, 255, 200, 0)');
+      ctx.fillStyle = sunGrad;
+      circle(0, 0, 300);
+      fill(255, 255, 220);
+      circle(0, 0, 80);
+      pop();
+    }
+
+    function drawBackground() {
+      fill(255, 255, 255, 220); noStroke();
+      for (let c of clouds) {
+        c.x += c.speed;
+        if (c.x > 3000) c.x = -500;
+        push(); translate(c.x, c.y); scale(c.s);
+        circle(0, 0, 60); circle(-30, 10, 45); circle(30, 10, 45);
+        circle(-15, -15, 50); circle(15, -15, 50);
+        pop();
+      }
+
+      fill(80, 160, 80); noStroke();
+      beginShape();
+      vertex(camX, 720);
+      for (let x = -500; x < 3500; x += 100) {
+        let y = 720 - 100 - noise(x * 0.003) * 120;
+        vertex(x, y);
+      }
+      vertex(3500, 720);
+      endShape(CLOSE);
+
+      fill(100, 200, 100);
+      beginShape();
+      vertex(camX, 720);
+      for (let x = -500; x < 3500; x += 80) {
+        let y = 720 - 50 - noise(x * 0.006 + 100) * 80;
+        vertex(x, y);
+      }
+      vertex(3500, 720);
+      endShape(CLOSE);
+    }
+
+    function drawGround() {
+      fill(60, 120, 40); rectMode(CORNER); noStroke();
+      rect(-1000, 680, 5000, 40);
+
+      fill(80, 160, 50); rect(-1000, 680, 5000, 15);
+      fill(100, 190, 60); rect(-1000, 680, 5000, 6);
+
+      stroke(100, 190, 60); strokeWeight(2);
+      for (let i = -800; i < 3000; i += 30) {
+        let bladeH = noise(i) * 15 + 5;
+        line(i, 680, i - 5 + noise(i * 2) * 10, 680 - bladeH);
+        line(i + 5, 680, i + noise(i * 3) * 10, 680 - bladeH * 0.8);
+      }
+    }
+
+    function drawButton(txt, x, y, w, h, hover) {
+      push();
+      rectMode(CENTER); textAlign(CENTER, CENTER); textSize(24);
+      drawingContext.shadowBlur = 10; drawingContext.shadowColor = 'rgba(0,0,0,0.5)';
+
+      if (hover) fill(255, 200, 50); else fill(255, 150, 0);
+      stroke(255); strokeWeight(3);
+      rect(x, y, w, h, 20);
+
+      noStroke(); fill(255); drawingContext.shadowBlur = 0;
+      text(txt, x, y);
+      pop();
+    }
+
+    function drawUI() {
+      let sm = getScaledMouse();
+      if (gameState === 'START') {
+        drawingContext.shadowBlur = 20; drawingContext.shadowColor = 'rgba(0,0,0,0.8)';
+        textAlign(CENTER, CENTER); textSize(100); fill(255, 50, 50); stroke(255); strokeWeight(8);
+        text("ANGRY BIRDS", 640, 240);
+        drawButton("PLAY", 640, 360, 200, 80, abs(sm.x - 640) < 100 && abs(sm.y - 360) < 40);
+      }
+      else if (gameState === 'PLAYING' || gameState === 'WAITING_WIN' || gameState === 'WAITING_LOSE') {
+        drawingContext.shadowBlur = 5; drawingContext.shadowColor = 'rgba(0,0,0,0.5)';
+        textAlign(LEFT, TOP); textSize(40); fill(255); stroke(0); strokeWeight(4);
+        text("SCORE: " + score, 20, 20);
+
+        let queued = birds.filter(b => b.state === 'queue');
+        for (let i = 0; i < queued.length; i++) {
+          drawBirdIcon(queued[i].type, 40 + i * 35, 90, 0.8);
+        }
+
+        textAlign(CENTER, TOP);
+        text("LEVEL " + (currentLevel + 1), 640, 20);
+        drawButton("RESTART", 1280 - 80, 40, 120, 40, sm.x > 1280 - 140 && sm.x < 1280 - 20 && sm.y > 20 && sm.y < 60);
+      }
+      else if (gameState === 'WIN') {
+        fill(0, 0, 0, 150); rectMode(CORNER); rect(0, 0, 1280, 720);
+        textAlign(CENTER, CENTER); textSize(80); fill(255, 200, 50); stroke(255); strokeWeight(8);
+        text("LEVEL CLEARED!", 640, 240);
+        text("SCORE: " + score, 640, 320);
+        drawButton(currentLevel < levels.length - 1 ? "NEXT LEVEL" : "MAIN MENU", 640, 410, 250, 80, abs(sm.x - 640) < 125 && abs(sm.y - 410) < 40);
+      }
+      else if (gameState === 'LOSE') {
+        fill(0, 0, 0, 150); rectMode(CORNER); rect(0, 0, 1280, 720);
+        textAlign(CENTER, CENTER); textSize(80); fill(200, 50, 50); stroke(255); strokeWeight(8);
+        text("LEVEL FAILED", 640, 240);
+        drawButton("TRY AGAIN", 640, 410, 250, 80, abs(sm.x - 640) < 125 && abs(sm.y - 410) < 40);
+      }
+    }
+
+    function draw() {
+      scale(scaleF);
+
+      if (gameState !== 'START') {
+        Engine.update(engine, 1000 / 60);
+        updateCamera();
+        checkWinLose();
+        checkBirdStop();
+
+        for (let i = blocks.length - 1; i >= 0; i--) {
+          let p = blocks[i].body.position;
+          if (blocks[i].health <= 0 || p.y > 1000) {
+            if (blocks[i].health <= 0) {
+              createParticles(p.x, p.y, [150, 100, 50], 10);
+              score += 500;
+            }
+            World.remove(world, blocks[i].body);
+            blocks.splice(i, 1);
+          }
+        }
+        for (let i = pigs.length - 1; i >= 0; i--) {
+          let p = pigs[i].body.position;
+          if (pigs[i].health <= 0 || p.y > 1000) {
+            if (pigs[i].health <= 0) {
+              createParticles(p.x, p.y, [100, 255, 100], 15);
+              score += 5000;
+            }
+            World.remove(world, pigs[i].body);
+            pigs.splice(i, 1);
+          }
+        }
+      }
+
+      push();
+      translate(-camX, 0);
+
+      drawSky();
+      drawBackground();
+      drawGround();
+
+      if (gameState !== 'START') {
+        for (let b of blocks) drawBlock(b);
+        for (let p of pigs) drawPig(p);
+
+        stroke(70, 35, 15); strokeWeight(14); strokeCap(ROUND);
+        line(slingBase.x - 15, slingBase.y - 10, slingBase.x, slingBase.y + 60);
+
+        if (isDragging && dragBird) {
+          stroke(40, 10, 10); strokeWeight(6);
+          line(slingBase.x - 20, slingBase.y - 10, dragBird.body.position.x, dragBird.body.position.y);
+        }
+
+        for (let b of birds) {
+          if (b.state !== 'used' && b.state !== 'queue') drawBird(b);
+        }
+
+        if (isDragging && dragBird) {
+          fill(100, 50, 20); noStroke();
+          push();
+          translate(dragBird.body.position.x, dragBird.body.position.y);
+          let angle = atan2(slingBase.y - dragBird.body.position.y, slingBase.x - dragBird.body.position.x);
+          rotate(angle);
+          rectMode(CENTER);
+          rect(-dragBird.r, 0, 10, 28, 5);
+          pop();
+
+          stroke(40, 10, 10); strokeWeight(6);
+          line(dragBird.body.position.x, dragBird.body.position.y, slingBase.x + 15, slingBase.y - 5);
+        }
+
+        stroke(80, 40, 20); strokeWeight(16); strokeCap(ROUND);
+        line(slingBase.x, slingBase.y + 50, slingBase.x, 680);
+        line(slingBase.x + 10, slingBase.y - 5, slingBase.x, slingBase.y + 55);
+
+        stroke(200, 180, 140); strokeWeight(3);
+        line(slingBase.x - 5, slingBase.y + 40, slingBase.x + 5, slingBase.y + 40);
+        line(slingBase.x - 5, slingBase.y + 45, slingBase.x + 5, slingBase.y + 45);
+        line(slingBase.x - 5, slingBase.y + 50, slingBase.x + 5, slingBase.y + 50);
+
+        updateDrawParticles();
+      }
+
+      pop();
+      drawUI();
+    }
+  </script>
+</body>
+
+</html>
