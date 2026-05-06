@@ -46,6 +46,7 @@
     let pigs = [];
     let blocks = [];
     let particles = [];
+    let cloudImages = [];
     let clouds = [];
 
     let slingBase;
@@ -59,10 +60,11 @@
     let targetCamX = 0;
     let scaleF = 1;
     let levelInstanceId = 0;
-    let skyImg;
 
     function preload() {
-      skyImg = loadImage('sky_clouds_new.png');
+      for (let i = 1; i <= 5; i++) {
+        cloudImages.push(loadImage(`cloud_${i}.svg`));
+      }
     }
 
     function windowResized() {
@@ -82,12 +84,31 @@
 
       setupCollisions();
 
+      // Initialize random clouds in the top 30% of the screen with overlap prevention
       for (let i = 0; i < 15; i++) {
+        let attempts = 0;
+        let x, y;
+        let isOverlapping = true;
+        
+        while (isOverlapping && attempts < 100) {
+          x = random(-500, 4000);
+          y = random(-50, 150);
+          isOverlapping = false;
+          for (let c of clouds) {
+            if (dist(x, y, c.x, c.y) < 800) {
+              isOverlapping = true;
+              break;
+            }
+          }
+          attempts++;
+        }
+        
         clouds.push({
-          x: random(-500, 3000),
-          y: random(50, 350),
-          s: random(0.5, 1.5),
-          speed: random(0.2, 0.5)
+          img: cloudImages[floor(random(cloudImages.length))],
+          x: x,
+          y: y,
+          scale: random(0.15, 0.3),
+          speed: random(0.005, 0.015)
         });
       }
 
@@ -749,27 +770,37 @@
 
     function drawSky() {
       let ctx = drawingContext;
-      if (skyImg) {
-        // Crop 2 pixels from each edge to remove baked-in dark artifacts from the image generator
-        let sourceW = skyImg.width - 4;
-        let skyW = sourceW * (720 / skyImg.height);
-        let offsetX = ((camX * 0.1) + frameCount * 0.2) % skyW;
-        if (offsetX < 0) offsetX += skyW;
-        
-        let startX = camX - offsetX;
-        while (startX < camX + 1280) {
-            image(skyImg, Math.floor(startX), 0, Math.ceil(skyW) + 1, 720, 2, 0, sourceW, skyImg.height);
-            startX += skyW - 0.5;
-        }
-      } else {
-        let grad = ctx.createLinearGradient(0, 0, 0, 720);
-        grad.addColorStop(0, '#00b4db');
-        grad.addColorStop(1, '#0083b0');
-        ctx.fillStyle = grad;
-        noStroke();
-        rect(camX, 0, 1280, 720);
+      ctx.shadowBlur = 0;
+      
+      // Use the blue color from clouds.svg for the entire sky
+      noStroke();
+      fill('#288de0');
+      rect(camX, 0, 1280, 720);
+
+      // Draw multiple clouds in the top 30% of the screen with parallax
+      for (let cloud of clouds) {
+          // Subtle movement over time
+          let ox = cos(frameCount * cloud.speed) * 10;
+          let oy = sin(frameCount * cloud.speed * 0.8) * 10;
+          
+          // Parallax: clouds move slower than the camera
+          // The background mountains use camX * 0.9 (implicit by translate(-camX) and vertex(camX...))
+          // Wait, drawBackground uses camX inside vertex calls, but it's called after translate(-camX, 0).
+          // Let's re-verify parallax.
+          
+          let drawW = cloud.img.width * cloud.scale;
+          let drawH = cloud.img.height * cloud.scale;
+          
+          // Parallax effect: x position is adjusted based on camX.
+          // Since this is called inside push/translate(-camX, 0), 
+          // a simple cloud.x will move with the world.
+          // To make it move SLOWER (further away), we add back some camX.
+          let px = cloud.x + camX * 0.1; 
+          
+          image(cloud.img, px + ox, cloud.y + oy, drawW, drawH);
       }
 
+      // Draw existing sun on top
       push();
       translate(camX + 1280 * 0.8, 720 * 0.2);
       
@@ -797,7 +828,6 @@
           let r2 = 120 + sin(frameCount * 0.1 + a)*10;
           line(cos(rot)*r1, sin(rot)*r1, cos(rot)*r2, sin(rot)*r2);
       }
-      
       pop();
     }
 
