@@ -48,6 +48,7 @@
     let particles = [];
     let cloudImages = [];
     let clouds = [];
+    let stoneImages = {};
 
     let slingBase;
     let dragBird = null;
@@ -117,10 +118,21 @@
         });
       }
 
+      // Check for level parameter in URL
+      let params = new URLSearchParams(window.location.search);
+      let lvl = params.get('level');
+      if (lvl) {
+        let lIdx = parseInt(lvl) - 1;
+        if (lIdx >= 0 && lIdx < levels.length) {
+          gameState = 'START'; 
+          loadLevel(lIdx);
+        }
+      }
+
       levels = [
         {
-          birds: ['red', 'red', 'yellow', 'blue', 'red', 'yellow', 'blue', 'red', 'yellow'],
-          pigs: [{ x: 950, y: 660, r: 20 }],
+          birds: ['bird_s', 'bird_s', 'bird_m', 'bird_s', 'bird_m'],
+          pigs: [{ x: 950, y: 660, r: 25 }],
           blocks: [
             { x: 900, y: 630, w: 20, h: 100, type: 'wood' },
             { x: 1000, y: 630, w: 20, h: 100, type: 'wood' },
@@ -128,14 +140,13 @@
           ]
         },
         {
-          birds: ['blue', 'yellow', 'red', 'red', 'blue', 'yellow', 'red', 'red', 'red'],
-          pigs: [{ x: 900, y: 660, r: 20 }, { x: 1100, y: 660, r: 20 }],
+          birds: ['bird_m', 'bird_s', 'bird_l', 'bird_m'],
+          pigs: [{ x: 900, y: 660, r: 25 }, { x: 1100, y: 660, r: 25 }],
           blocks: [
             { x: 850, y: 630, w: 20, h: 100, type: 'stone' },
             { x: 950, y: 630, w: 20, h: 100, type: 'stone' },
             { x: 900, y: 570, w: 140, h: 20, type: 'wood' },
             { x: 900, y: 540, w: 20, h: 40, type: 'glass' },
-
             { x: 1050, y: 630, w: 20, h: 100, type: 'stone' },
             { x: 1150, y: 630, w: 20, h: 100, type: 'stone' },
             { x: 1100, y: 570, w: 140, h: 20, type: 'wood' },
@@ -143,11 +154,11 @@
           ]
         },
         {
-          birds: ['yellow', 'blue', 'yellow', 'blue', 'red', 'red', 'yellow', 'blue', 'red', 'yellow'],
+          birds: ['bird_m', 'bird_m', 'bird_l', 'bird_s', 'bird_s'],
           pigs: [
-            { x: 950, y: 660, r: 20 },
-            { x: 1050, y: 660, r: 20 },
-            { x: 1000, y: 540, r: 20 }
+            { x: 950, y: 660, r: 25 },
+            { x: 1050, y: 660, r: 25 },
+            { x: 1000, y: 540, r: 25 }
           ],
           blocks: [
             { x: 900, y: 630, w: 20, h: 100, type: 'stone' },
@@ -158,6 +169,52 @@
             { x: 1050, y: 510, w: 20, h: 100, type: 'glass' },
             { x: 1000, y: 450, w: 140, h: 20, type: 'wood' },
             { x: 1000, y: 420, w: 40, h: 40, type: 'wood' }
+          ]
+        },
+        {
+          birds: ['bird_s', 'bird_m', 'bird_l', 'bird_l'],
+          pigs: [
+            { x: 1000, y: 660, r: 25 },
+            { x: 1000, y: 480, r: 25 },
+            { x: 1000, y: 300, r: 25 }
+          ],
+          blocks: [
+            { x: 950, y: 630, w: 20, h: 100, type: 'stone' },
+            { x: 1050, y: 630, w: 20, h: 100, type: 'stone' },
+            { x: 1000, y: 570, w: 150, h: 20, type: 'stone' },
+            { x: 970, y: 510, w: 15, h: 100, type: 'wood' },
+            { x: 1030, y: 510, w: 15, h: 100, type: 'wood' },
+            { x: 1000, y: 450, w: 100, h: 20, type: 'wood' },
+            { x: 985, y: 390, w: 10, h: 100, type: 'glass' },
+            { x: 1015, y: 390, w: 10, h: 100, type: 'glass' },
+            { x: 1000, y: 330, w: 60, h: 15, type: 'glass' }
+          ]
+        },
+        {
+          birds: ['bird_l', 'bird_m', 'bird_m', 'bird_s', 'bird_s'],
+          pigs: [
+            { x: 800, y: 660, r: 25 },
+            { x: 1200, y: 660, r: 25 },
+            { x: 1000, y: 450, r: 25 },
+            { x: 1000, y: 150, r: 25 }
+          ],
+          blocks: [
+            { x: 750, y: 630, w: 30, h: 100, type: 'stone' },
+            { x: 850, y: 630, w: 30, h: 100, type: 'stone' },
+            { x: 800, y: 570, w: 130, h: 30, type: 'stone' },
+            { x: 1150, y: 630, w: 30, h: 100, type: 'stone' },
+            { x: 1250, y: 630, w: 30, h: 100, type: 'stone' },
+            { x: 1200, y: 570, w: 130, h: 30, type: 'stone' },
+            { x: 800, y: 510, w: 20, h: 100, type: 'wood' },
+            { x: 1200, y: 510, w: 20, h: 100, type: 'wood' },
+            { x: 1000, y: 510, w: 400, h: 20, type: 'stone' },
+            { x: 950, y: 450, w: 15, h: 100, type: 'glass' },
+            { x: 1050, y: 450, w: 15, h: 100, type: 'glass' },
+            { x: 1000, y: 390, w: 150, h: 15, type: 'wood' },
+            { x: 980, y: 330, w: 10, h: 100, type: 'wood' },
+            { x: 1020, y: 330, w: 10, h: 100, type: 'wood' },
+            { x: 1000, y: 270, w: 80, h: 15, type: 'stone' },
+            { x: 1000, y: 210, w: 20, h: 100, type: 'glass' }
           ]
         }
       ];
@@ -214,7 +271,7 @@
 
       for (let i = 0; i < levelData.birds.length; i++) {
         let type = levelData.birds[i];
-        let r = (type === 'blue') ? 12 : (type === 'yellow' ? 18 : 16);
+        let r = (type === 'bird_s') ? 16 : (type === 'bird_m' ? 22 : 30);
         let bird = { type: type, r: r, state: 'queue', abilityUsed: false, isBird: true };
         birds.push(bird);
       }
@@ -229,11 +286,20 @@
     }
 
     function loadNextBird() {
+      // Cleanup any birds near the slingshot that might be "stuck"
+      for (let b of birds) {
+        if (b.state === 'slingshot' || (b.state === 'flying' && dist(b.body.position.x, b.body.position.y, slingBase.x, slingBase.y) < 50)) {
+          b.state = 'used';
+          World.remove(world, b.body);
+        }
+      }
+
       let next = birds.find(b => b.state === 'queue');
       if (next) {
         next.state = 'slingshot';
         dragBird = next;
-        let body = Bodies.circle(slingBase.x, slingBase.y, next.r, { density: 0.004, friction: 0.8, restitution: 0.3 });
+        let density = (next.type === 'bird_s') ? 0.005 : (next.type === 'bird_m' ? 0.008 : 0.015);
+        let body = Bodies.circle(slingBase.x, slingBase.y, next.r, { density: density, friction: 0.8, restitution: 0.2 });
         body.gameObject = next;
         next.body = body;
         Body.setStatic(next.body, true);
@@ -294,21 +360,27 @@
     }
 
     function checkBirdStop() {
-      if (activeBird && activeBird.state === 'flying') {
-        let speed = activeBird.body.speed;
-        let angular = Math.abs(activeBird.body.angularVelocity);
-        let p = activeBird.body.position;
+      for (let b of birds) {
+        if (b.state === 'flying') {
+          let speed = b.body.speed;
+          let angular = Math.abs(b.body.angularVelocity);
+          let p = b.body.position;
 
-        if ((speed < 0.5 && angular < 0.1 && frameCount - launchFrame > 150) ||
-          p.x > 3500 || p.x < -500 || p.y > 1000) {
-          activeBird.state = 'used';
-          World.remove(world, activeBird.body);
-          activeBird = null;
-          setTimeout(() => {
-            if (gameState === 'PLAYING' || gameState === 'WAITING_WIN' || gameState === 'WAITING_LOSE') {
-              loadNextBird();
+          if ((speed < 0.4 && angular < 0.08 && frameCount - launchFrame > 150) ||
+            p.x > 3500 || p.x < -500 || p.y > 1000) {
+            
+            b.state = 'used';
+            World.remove(world, b.body);
+            
+            if (b === activeBird) {
+              activeBird = null;
+              setTimeout(() => {
+                if (gameState === 'PLAYING' || gameState === 'WAITING_WIN' || gameState === 'WAITING_LOSE') {
+                  loadNextBird();
+                }
+              }, 800);
             }
-          }, 1000);
+          }
         }
       }
     }
@@ -320,26 +392,24 @@
       let v = activeBird.body.velocity;
       let p = activeBird.body.position;
 
-      if (activeBird.type === 'yellow') {
+      if (activeBird.type === 'bird_l') {
         let mag = Math.sqrt(v.x * v.x + v.y * v.y);
-        let boost = 20;
+        let boost = 25;
         if (mag > 0.1) {
           Body.setVelocity(activeBird.body, { x: (v.x / mag) * boost, y: (v.y / mag) * boost });
         }
-        createParticles(p.x, p.y, [255, 255, 0], 20);
+        createParticles(p.x, p.y, [255, 200, 50], 25);
       }
-      else if (activeBird.type === 'blue') {
-        for (let dy of [-15, 15]) {
-          let bBody = Bodies.circle(p.x, p.y + dy, 12, { density: 0.004, friction: 0.5, restitution: 0.4 });
-          Body.setVelocity(bBody, { x: v.x, y: v.y + dy / 2 });
-          let bird = { body: bBody, type: 'blue', r: 12, state: 'flying', abilityUsed: true, isBird: true };
+      else if (activeBird.type === 'bird_m') {
+        for (let dy of [-12, 12]) {
+          let bBody = Bodies.circle(p.x, p.y + dy, 18, { density: 0.008, friction: 0.5, restitution: 0.2 });
+          Body.setVelocity(bBody, { x: v.x * 1.1, y: v.y + dy / 2 });
+          let bird = { body: bBody, type: 'bird_m', r: 18, state: 'flying', abilityUsed: true, isBird: true };
           bBody.gameObject = bird;
           birds.push(bird);
           World.add(world, bBody);
         }
-        activeBird.r = 12;
-        Body.setVelocity(activeBird.body, { x: v.x, y: v.y });
-        createParticles(p.x, p.y, [100, 200, 255], 20);
+        createParticles(p.x, p.y, [255, 255, 100], 20);
       }
     }
 
@@ -445,7 +515,29 @@
         particles.push({
           x: x + random(-10, 10), y: y + random(-10, 10),
           vx: random(-4, 4), vy: random(-4, 4),
-          life: 255, color: color, size: random(4, 12), isConfetti: false
+          life: 255, color: color, size: random(4, 12), isConfetti: false, isGlass: false
+        });
+      }
+    }
+
+    function createGlassShatter(x, y, count) {
+      for (let i = 0; i < count; i++) {
+        let angle = random(TWO_PI);
+        let speed = random(2, 8);
+        particles.push({
+          x: x, y: y,
+          vx: cos(angle) * speed, vy: sin(angle) * speed - 2,
+          life: 255, color: [200, 240, 255, 200],
+          size: random(5, 15),
+          isConfetti: false,
+          isGlass: true,
+          rot: random(TWO_PI),
+          rotV: random(-0.2, 0.2),
+          points: [
+            { x: random(-5, 5), y: random(-5, 5) },
+            { x: random(-5, 5), y: random(-5, 5) },
+            { x: random(-5, 5), y: random(-5, 5) }
+          ]
         });
       }
     }
@@ -470,74 +562,106 @@
           p.vy += 0.05;
           p.x += sin(frameCount * 0.1 + p.life) * 2;
           p.life -= 1.5;
+        } else if (p.isGlass) {
+          p.vy += 0.25;
+          p.rot += p.rotV;
+          p.life -= 3;
         } else {
           p.vy += 0.2;
           p.life -= 5;
         }
 
         noStroke();
-        fill(p.color[0], p.color[1], p.color[2], min(p.life, 255));
-        if (p.isConfetti) {
+        if (p.isGlass) {
           push();
           translate(p.x, p.y);
-          rotate(frameCount * 0.1 + p.life);
-          rect(0, 0, p.size, p.size);
+          rotate(p.rot);
+          fill(200, 230, 255, min(p.life, 180));
+          stroke(255, 255, 255, min(p.life, 200));
+          strokeWeight(1);
+          beginShape();
+          for (let pt of p.points) vertex(pt.x, pt.y);
+          endShape(CLOSE);
           pop();
         } else {
-          circle(p.x, p.y, p.size);
+          fill(p.color[0], p.color[1], p.color[2], min(p.life, 255));
+          if (p.isConfetti) {
+            push();
+            translate(p.x, p.y);
+            rotate(frameCount * 0.1 + p.life);
+            rect(0, 0, p.size, p.size);
+            pop();
+          } else {
+            circle(p.x, p.y, p.size);
+          }
         }
 
         if (p.life <= 0) particles.splice(i, 1);
       }
     }
 
+    function drawBirdBody(r, id, type) {
+      push();
+      let color, bellyColor, eyeColor, beakColor;
+      if (type === 'bird_s') {
+        color = '#ff3b3b'; bellyColor = '#ffcfcf'; eyeColor = '#ffffff'; beakColor = '#ffcc00';
+      } else if (type === 'bird_m') {
+        color = '#ffe100'; bellyColor = '#fff5a1'; eyeColor = '#ffffff'; beakColor = '#ff9900';
+      } else {
+        color = '#a30000'; bellyColor = '#ff8c8c'; eyeColor = '#ffffff'; beakColor = '#ffcc00';
+      }
+
+      // Shadow
+      noStroke(); fill(0, 50); ellipse(2, 2, r * 2.1);
+
+      // Body
+      fill(color); stroke(0); strokeWeight(2);
+      if (type === 'bird_m') {
+        // Triangular for medium
+        triangle(-r, r, r, r, 0, -r * 1.2);
+        fill(bellyColor); noStroke();
+        arc(0, r * 0.4, r * 1.5, r, 0, PI);
+      } else {
+        // Round for others
+        ellipse(0, 0, r * 2);
+        fill(bellyColor); noStroke();
+        arc(0, r * 0.2, r * 1.8, r * 1.4, 0, PI);
+      }
+
+      // Eyes
+      fill(255); stroke(0); strokeWeight(1);
+      if (type === 'bird_l') {
+        // Angrier eyes for big bird
+        ellipse(-r * 0.4, -r * 0.2, r * 0.7, r * 0.8);
+        ellipse(r * 0.4, -r * 0.2, r * 0.7, r * 0.8);
+      } else {
+        ellipse(-r * 0.35, -r * 0.1, r * 0.6, r * 0.7);
+        ellipse(r * 0.35, -r * 0.1, r * 0.6, r * 0.7);
+      }
+      
+      fill(0); noStroke();
+      ellipse(-r * 0.25, -r * 0.1, r * 0.2);
+      ellipse(r * 0.25, -r * 0.1, r * 0.2);
+
+      // Eyebrows
+      stroke(0); strokeWeight(3);
+      line(-r * 0.7, -r * 0.5, -r * 0.1, -r * 0.3);
+      line(r * 0.7, -r * 0.5, r * 0.1, -r * 0.3);
+
+      // Beak
+      fill(beakColor); stroke(0); strokeWeight(1);
+      triangle(0, -r * 0.05, r * 0.8, r * 0.15, 0, r * 0.35);
+      line(0, r * 0.15, r * 0.6, r * 0.15);
+
+      pop();
+    }
+
     function drawBirdIcon(type, x, y, s) {
       push();
       translate(x, y);
       scale(s);
-      let r = (type === 'blue') ? 12 : (type === 'yellow' ? 18 : 16);
-      drawingContext.shadowBlur = 8;
-      drawingContext.shadowColor = 'rgba(0,0,0,0.5)';
-      if (type === 'red') {
-        fill(150, 20, 20); noStroke();
-        rect(-r - 5, -2, 10, 4, 2); rect(-r - 4, -8, 8, 4, 2); rect(-r - 4, 4, 8, 4, 2);
-        let grad = drawingContext.createRadialGradient(-r * 0.3, -r * 0.3, r * 0.1, 0, 0, r);
-        grad.addColorStop(0, '#ff4b4b'); grad.addColorStop(1, '#a60000');
-        drawingContext.fillStyle = grad; circle(0, 0, r * 2);
-        fill(250, 240, 220); arc(0, 0, r * 2, r * 2, 0, PI);
-        fill(180, 20, 20); ellipse(2, -r - 3, 8, 12); ellipse(-2, -r - 2, 6, 10);
-        fill(255); stroke(150, 0, 0); strokeWeight(1); circle(-6, -4, 11); circle(6, -4, 11);
-        fill(0); noStroke(); circle(-4, -4, 4); circle(8, -4, 4);
-        fill(50, 0, 0); rectMode(CENTER);
-        push(); rotate(PI / 6); rect(-6, -12, 16, 5, 2); pop();
-        push(); rotate(-PI / 6); rect(6, -12, 16, 5, 2); pop();
-        fill(255, 200, 0); stroke(200, 100, 0); strokeWeight(1); triangle(0, -2, 14, 4, 0, 10); line(0, 4, 14, 4);
-      } else if (type === 'yellow') {
-        fill(0); noStroke();
-        rect(-r - 4, 2, 12, 4, 2); rect(-r - 2, 8, 10, 4, 2);
-        let grad = drawingContext.createRadialGradient(0, 0, r * 0.2, 0, 0, r * 1.5);
-        grad.addColorStop(0, '#ffe100'); grad.addColorStop(1, '#d48d00');
-        drawingContext.fillStyle = grad; triangle(-r * 1.2, r, r * 1.2, r, 0, -r * 1.5);
-        fill(255); arc(0, r * 0.5, r * 2.4, r, 0, PI);
-        fill(0); ellipse(0, -r * 1.6, 8, 16); ellipse(-5, -r * 1.4, 6, 12);
-        fill(255); stroke(200, 100, 0); strokeWeight(1); circle(-7, 0, 12); circle(7, 0, 12);
-        fill(0); noStroke(); circle(-5, 0, 4); circle(9, 0, 4);
-        fill(200, 50, 50); rectMode(CENTER);
-        push(); rotate(PI / 6); rect(-7, -8, 16, 4, 2); pop();
-        push(); rotate(-PI / 6); rect(7, -8, 16, 4, 2); pop();
-        fill(255, 150, 0); stroke(200, 80, 0); strokeWeight(1); triangle(0, 2, 16, 8, 0, 14); line(0, 8, 16, 8);
-      } else if (type === 'blue') {
-        fill(20, 100, 200); noStroke(); rect(-r - 3, 0, 6, 3, 2);
-        let grad = drawingContext.createRadialGradient(-r * 0.3, -r * 0.3, r * 0.1, 0, 0, r);
-        grad.addColorStop(0, '#66c2ff'); grad.addColorStop(1, '#0073e6');
-        drawingContext.fillStyle = grad; circle(0, 0, r * 2);
-        fill(200, 230, 255); arc(0, 0, r * 2, r * 2, 0, PI);
-        fill(20, 100, 200); ellipse(0, -r - 2, 6, 8);
-        fill(255); stroke(0, 100, 200); strokeWeight(1); circle(-5, -2, 9); circle(5, -2, 9);
-        fill(0); noStroke(); circle(-4, -2, 3); circle(6, -2, 3);
-        fill(255, 200, 0); stroke(200, 100, 0); strokeWeight(1); triangle(0, 0, 10, 3, 0, 6); line(0, 3, 10, 3);
-      }
-      fill(255, 255, 255, 50); noStroke(); arc(0, 0, r * 1.6, r * 1.6, PI, TWO_PI);
+      let r = (type === 'bird_s') ? 16 : (type === 'bird_m' ? 22 : 30);
+      drawBirdBody(r, 999, type);
       pop();
     }
 
@@ -545,100 +669,7 @@
       push();
       translate(bird.body.position.x, bird.body.position.y);
       rotate(bird.body.angle);
-
-      drawingContext.shadowBlur = 12;
-      drawingContext.shadowColor = 'rgba(0,0,0,0.5)';
-
-      if (bird.type === 'red') {
-        fill(150, 20, 20); noStroke();
-        rect(-bird.r - 5, -2, 10, 4, 2);
-        rect(-bird.r - 4, -8, 8, 4, 2);
-        rect(-bird.r - 4, 4, 8, 4, 2);
-
-        let grad = drawingContext.createRadialGradient(-bird.r * 0.3, -bird.r * 0.3, bird.r * 0.1, 0, 0, bird.r);
-        grad.addColorStop(0, '#ff4b4b');
-        grad.addColorStop(1, '#a60000');
-        drawingContext.fillStyle = grad;
-        circle(0, 0, bird.r * 2);
-
-        fill(250, 240, 220);
-        arc(0, 0, bird.r * 2, bird.r * 2, 0, PI);
-
-        fill(180, 20, 20);
-        ellipse(2, -bird.r - 3, 8, 12);
-        ellipse(-2, -bird.r - 2, 6, 10);
-
-        fill(255); stroke(150, 0, 0); strokeWeight(1);
-        circle(-6, -4, 11); circle(6, -4, 11);
-        fill(0); noStroke();
-        circle(-4, -4, 4); circle(8, -4, 4);
-
-        fill(50, 0, 0); rectMode(CENTER);
-        push(); rotate(PI / 6); rect(-6, -12, 16, 5, 2); pop();
-        push(); rotate(-PI / 6); rect(6, -12, 16, 5, 2); pop();
-
-        fill(255, 200, 0); stroke(200, 100, 0); strokeWeight(1);
-        triangle(0, -2, 14, 4, 0, 10);
-        line(0, 4, 14, 4);
-      } else if (bird.type === 'yellow') {
-        fill(0); noStroke();
-        rect(-bird.r - 4, 2, 12, 4, 2);
-        rect(-bird.r - 2, 8, 10, 4, 2);
-
-        let grad = drawingContext.createRadialGradient(0, 0, bird.r * 0.2, 0, 0, bird.r * 1.5);
-        grad.addColorStop(0, '#ffe100');
-        grad.addColorStop(1, '#d48d00');
-        drawingContext.fillStyle = grad;
-        triangle(-bird.r * 1.2, bird.r, bird.r * 1.2, bird.r, 0, -bird.r * 1.5);
-
-        fill(255);
-        arc(0, bird.r * 0.5, bird.r * 2.4, bird.r, 0, PI);
-
-        fill(0);
-        ellipse(0, -bird.r * 1.6, 8, 16);
-        ellipse(-5, -bird.r * 1.4, 6, 12);
-
-        fill(255); stroke(200, 100, 0); strokeWeight(1);
-        circle(-7, 0, 12); circle(7, 0, 12);
-        fill(0); noStroke();
-        circle(-5, 0, 4); circle(9, 0, 4);
-
-        fill(200, 50, 50); rectMode(CENTER);
-        push(); rotate(PI / 6); rect(-7, -8, 16, 4, 2); pop();
-        push(); rotate(-PI / 6); rect(7, -8, 16, 4, 2); pop();
-
-        fill(255, 150, 0); stroke(200, 80, 0); strokeWeight(1);
-        triangle(0, 2, 16, 8, 0, 14);
-        line(0, 8, 16, 8);
-      } else if (bird.type === 'blue') {
-        fill(20, 100, 200); noStroke();
-        rect(-bird.r - 3, 0, 6, 3, 2);
-
-        let grad = drawingContext.createRadialGradient(-bird.r * 0.3, -bird.r * 0.3, bird.r * 0.1, 0, 0, bird.r);
-        grad.addColorStop(0, '#66c2ff');
-        grad.addColorStop(1, '#0073e6');
-        drawingContext.fillStyle = grad;
-        circle(0, 0, bird.r * 2);
-
-        fill(200, 230, 255);
-        arc(0, 0, bird.r * 2, bird.r * 2, 0, PI);
-
-        fill(20, 100, 200);
-        ellipse(0, -bird.r - 2, 6, 8);
-
-        fill(255); stroke(0, 100, 200); strokeWeight(1);
-        circle(-5, -2, 9); circle(5, -2, 9);
-        fill(0); noStroke();
-        circle(-4, -2, 3); circle(6, -2, 3);
-
-        fill(255, 200, 0); stroke(200, 100, 0); strokeWeight(1);
-        triangle(0, 0, 10, 3, 0, 6);
-        line(0, 3, 10, 3);
-      }
-
-      fill(255, 255, 255, 50); noStroke();
-      arc(0, 0, bird.r * 1.6, bird.r * 1.6, PI, TWO_PI);
-
+      drawBirdBody(bird.r, bird.body.id, bird.type);
       pop();
     }
 
@@ -647,52 +678,28 @@
       translate(pig.body.position.x, pig.body.position.y);
       rotate(pig.body.angle);
 
-      drawingContext.shadowBlur = 12;
-      drawingContext.shadowColor = 'rgba(0,0,0,0.4)';
+      drawingContext.shadowBlur = 15;
+      drawingContext.shadowColor = 'rgba(255,255,255,0.2)';
 
-      let hpRatio = pig.health / pig.maxHealth;
+      // Draw an elegant wine glass
+      stroke(255, 255, 255, 180);
+      strokeWeight(2);
+      fill(200, 230, 255, 100);
 
-      fill(map(hpRatio, 0, 1, 100, 80), 180, 40); noStroke();
-      push(); translate(-pig.r * 0.6, -pig.r * 0.6); rotate(-PI / 4); ellipse(0, 0, 12, 18);
-      fill(0, 0, 0, 40); ellipse(0, 0, 6, 10); pop();
-      push(); translate(pig.r * 0.6, -pig.r * 0.6); rotate(PI / 4); ellipse(0, 0, 12, 18);
-      fill(0, 0, 0, 40); ellipse(0, 0, 6, 10); pop();
+      // Bowl
+      arc(0, -5, pig.r * 1.5, pig.r * 1.8, 0, PI, OPEN);
+      line(-pig.r * 0.75, -5, pig.r * 0.75, -5);
 
-      let grad = drawingContext.createRadialGradient(-pig.r * 0.2, -pig.r * 0.2, pig.r * 0.2, 0, 0, pig.r);
-      let baseColor = map(hpRatio, 0, 1, 150, 100);
-      grad.addColorStop(0, `rgb(${baseColor + 40}, 240, 80)`);
-      grad.addColorStop(1, `rgb(${baseColor}, 180, 40)`);
-      drawingContext.fillStyle = grad;
-      circle(0, 0, pig.r * 2);
+      // Stem
+      line(0, pig.r * 0.4, 0, pig.r * 1.2);
+      
+      // Base
+      line(-pig.r * 0.5, pig.r * 1.2, pig.r * 0.5, pig.r * 1.2);
 
-      fill(map(hpRatio, 0, 1, 120, 90), 220, 60);
-      stroke(map(hpRatio, 0, 1, 80, 50), 160, 30); strokeWeight(1.5);
-      ellipse(0, 4, pig.r * 1.2, pig.r * 0.9);
-
-      fill(30, 80, 0); noStroke();
-      ellipse(-4, 4, 6, 8); ellipse(4, 4, 6, 8);
-
-      fill(255); stroke(50, 120, 20); strokeWeight(1);
-      circle(-9, -6, 10); circle(9, -6, 10);
-      fill(0); noStroke();
-      circle(-9 + (1 - hpRatio) * 5, -6, 4);
-      circle(9 - (1 - hpRatio) * 5, -6, 4);
-
-      fill(50, 100, 20);
-      rectMode(CENTER);
-      push(); rotate(PI / 8); rect(-9, -13, 10, 3, 2); pop();
-      push(); rotate(-PI / 8); rect(9, -13, 10, 3, 2); pop();
-
-      if (hpRatio < 0.6) {
-        fill(50, 50, 0, 120);
-        circle(-12, 12, 12);
-        circle(12, -12, 16);
-        fill(240, 230, 200); stroke(150); strokeWeight(1);
-        push(); translate(0, -14); rotate(PI / 6); rect(0, 0, 16, 6); pop();
-      }
-
-      fill(255, 255, 255, 50); noStroke();
-      arc(0, 0, pig.r * 1.6, pig.r * 1.6, PI, TWO_PI);
+      // Liquid reflection
+      noStroke();
+      fill(255, 255, 255, 80);
+      ellipse(-pig.r * 0.3, -pig.r * 0.2, pig.r * 0.4, pig.r * 0.6);
 
       pop();
     }
@@ -943,7 +950,7 @@
           let p = pigs[i].body.position;
           if (pigs[i].health <= 0 || p.y > 1000) {
             if (pigs[i].health <= 0) {
-              createParticles(p.x, p.y, [100, 255, 100], 15);
+              createGlassShatter(p.x, p.y, 20);
               score += 5000;
             }
             World.remove(world, pigs[i].body);
