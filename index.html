@@ -1020,16 +1020,20 @@
       let visibleTop = 360;
       let visibleHeight = 360;
       let viewportWidth = 1280;
-      let scaleToCover = max(viewportWidth / img.width, visibleHeight / img.height);
+      let maxCameraX = 1000;
+      let scrollMargin = 260;
+      let worldLeft = -scrollMargin * 0.5;
+      let worldWidth = viewportWidth + maxCameraX + scrollMargin;
+      let scaleToCover = worldWidth / img.width;
       let drawW = img.width * scaleToCover;
       let drawH = img.height * scaleToCover;
-      let drawX = camX + (viewportWidth - drawW) * 0.5;
+      let drawX = worldLeft;
       let drawY = 720 - drawH;
 
       push();
       drawingContext.save();
       drawingContext.beginPath();
-      drawingContext.rect(camX, visibleTop, viewportWidth, visibleHeight);
+      drawingContext.rect(camX, 0, viewportWidth, 720);
       drawingContext.clip();
       image(img, drawX, drawY, drawW, drawH);
       drawingContext.restore();
