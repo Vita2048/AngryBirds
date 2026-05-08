@@ -5,8 +5,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Angry Birds Clone</title>
+  <link rel="icon" type="image/svg+xml" href="Icon.svg" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+  <script src="editor.js"></script>
   <style>
     body {
       margin: 0;
@@ -460,9 +462,14 @@
       let mx = sm.x + camX;
       let my = sm.y;
 
+      if (gameState === 'EDITOR') { edMousePressed(mx, my); return; }
+
       if (gameState === 'START') {
-        if (abs(sm.x - 640) < 100 && abs(sm.y - 360) < 40) {
+        if (abs(sm.x - 640) < 100 && abs(sm.y - 350) < 40) {
           loadLevel(0);
+        }
+        if (abs(sm.x - 640) < 100 && abs(sm.y - 450) < 40) {
+          enterEditor();
         }
         return;
       }
@@ -470,10 +477,12 @@
       if (gameState === 'WIN' || gameState === 'LOSE') {
         if (abs(sm.x - 640) < 125 && abs(sm.y - 410) < 40) {
           if (gameState === 'WIN') {
-            if (currentLevel < levels.length - 1) loadLevel(currentLevel + 1);
+            if (edCustomLevel) { gameState = 'START'; score = 0; levels.pop(); edCustomLevel = null; }
+            else if (currentLevel < levels.length - 1) loadLevel(currentLevel + 1);
             else { gameState = 'START'; score = 0; }
           } else {
-            loadLevel(currentLevel);
+            if (edCustomLevel) loadLevel(levels.length - 1);
+            else loadLevel(currentLevel);
           }
         }
         return;
@@ -494,6 +503,7 @@
     }
 
     function mouseDragged() {
+      if (gameState === 'EDITOR') { edMouseDragged(); return; }
       if (isDragging && dragBird) {
         let sm = getScaledMouse();
         let mx = sm.x + camX;
@@ -512,6 +522,7 @@
     }
 
     function mouseReleased() {
+      if (gameState === 'EDITOR') { edMouseReleased(); return; }
       if (isDragging && dragBird) {
         isDragging = false;
         let base = createVector(slingBase.x, slingBase.y);
@@ -532,6 +543,10 @@
           Body.setPosition(dragBird.body, { x: base.x, y: base.y });
         }
       }
+    }
+
+    function keyPressed() {
+      if (gameState === 'EDITOR') { edKeyPressed(); return; }
     }
 
     function createParticles(x, y, color, count) {
@@ -1059,8 +1074,9 @@
       if (gameState === 'START') {
         drawingContext.shadowBlur = 20; drawingContext.shadowColor = 'rgba(0,0,0,0.8)';
         textAlign(CENTER, CENTER); textSize(100); fill(255, 50, 50); stroke(255); strokeWeight(8);
-        text("ANGRY BIRDS", 640, 240);
-        drawButton("PLAY", 640, 360, 200, 80, abs(sm.x - 640) < 100 && abs(sm.y - 360) < 40);
+        text("ANGRY BIRDS", 640, 220);
+        drawButton("PLAY", 640, 350, 200, 80, abs(sm.x - 640) < 100 && abs(sm.y - 350) < 40);
+        drawButton("DESIGN", 640, 450, 200, 80, abs(sm.x - 640) < 100 && abs(sm.y - 450) < 40);
       }
       else if (gameState === 'PLAYING' || gameState === 'WAITING_WIN' || gameState === 'WAITING_LOSE') {
         drawingContext.shadowBlur = 5; drawingContext.shadowColor = 'rgba(0,0,0,0.5)';
@@ -1093,6 +1109,15 @@
 
     function draw() {
       scale(scaleF);
+
+      if (gameState === 'EDITOR') {
+        drawSky();
+        drawEdCanvas();
+        drawEdToolbar();
+        drawEditorUI();
+        drawEdBirdPanel();
+        return;
+      }
 
       if (gameState !== 'START') {
         Engine.update(engine, 1000 / 60);
