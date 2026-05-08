@@ -224,6 +224,17 @@
       ];
     }
 
+    function calcBlockHealth(type, w, h) {
+      let baseHp = type === 'stone' ? 300 : (type === 'wood' ? 100 : 50);
+      let minSide = max(10, min(w, h));
+      let area = max(400, w * h);
+      // Thickness matters most; area contributes but with diminishing returns.
+      let thicknessScale = pow(minSide / 20, 0.9);
+      let areaScale = pow(area / 1600, 0.35);
+      let hp = round(baseHp * thicknessScale * areaScale);
+      return constrain(hp, round(baseHp * 0.6), round(baseHp * 8));
+    }
+
     function loadLevel(idx) {
       levelInstanceId++;
       currentLevel = idx;
@@ -258,7 +269,7 @@
         if (b.type === 'glass') opts = { ...opts, density: 0.001, friction: 0.5, restitution: 0.3 };
 
         let body = Bodies.rectangle(b.x, b.y, b.w, b.h, opts);
-        let hp = b.type === 'stone' ? 300 : (b.type === 'wood' ? 100 : 50);
+        let hp = calcBlockHealth(b.type, b.w, b.h);
         let block = { body: body, type: b.type, w: b.w, h: b.h, health: hp, maxHealth: hp };
         body.gameObject = block;
         blocks.push(block);
@@ -469,7 +480,9 @@
           loadLevel(0);
         }
         if (abs(sm.x - 640) < 100 && abs(sm.y - 450) < 40) {
-          enterEditor();
+          if (typeof enterEditor === 'function') {
+            enterEditor();
+          }
         }
         return;
       }
@@ -542,6 +555,12 @@
         } else {
           Body.setPosition(dragBird.body, { x: base.x, y: base.y });
         }
+      }
+    }
+
+    function mouseWheel(event) {
+      if (gameState === 'EDITOR' && typeof edMouseWheel === 'function') {
+        if (edMouseWheel(event.delta)) return false;
       }
     }
 
