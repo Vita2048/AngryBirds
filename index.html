@@ -440,7 +440,7 @@
       if (gameState !== 'START') {
         let targetX = 0;
         if (activeBird && activeBird.state === 'flying') {
-          targetX = activeBird.body.position.x - 300;
+          targetX = activeBird.body.position.x - 1280/2;
         }
         targetX = constrain(targetX, 0, 1000);
         camX = lerp(camX, targetX, 0.1);
@@ -1056,7 +1056,7 @@
       let viewportWidth = 1280;
       let maxCameraX = 1000;
       let scrollMargin = 260;
-      let worldLeft = -scrollMargin * 0.5;
+      let worldLeft = -scrollMargin * 0.0;
       let worldWidth = viewportWidth + maxCameraX + scrollMargin;
       let scaleToCover = worldWidth / img.width;
       let drawW = img.width * scaleToCover;
