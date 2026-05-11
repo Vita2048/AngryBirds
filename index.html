@@ -122,16 +122,7 @@
         });
       }
 
-      // Check for level parameter in URL
-      let params = new URLSearchParams(window.location.search);
-      let lvl = params.get('level');
-      if (lvl) {
-        let lIdx = parseInt(lvl) - 1;
-        if (lIdx >= 0 && lIdx < levels.length) {
-          gameState = 'START';
-          loadLevel(lIdx);
-        }
-      }
+
 
       levels = [
         {
@@ -220,8 +211,18 @@
             { x: 1000, y: 270, w: 80, h: 15, type: 'stone' },
             { x: 1000, y: 210, w: 20, h: 100, type: 'glass' }
           ]
+        }];
+      // Check for level parameter in URL
+      let params = new URLSearchParams(window.location.search);
+      let lvl = params.get('level');
+      if (lvl) {
+        let lIdx = parseInt(lvl) - 1;
+        if (lIdx >= 0 && lIdx < levels.length) {
+          gameState = 'PLAYING';        // Changed from 'START' to directly start
+          loadLevel(lIdx);
+          return; // Important: skip the normal start screen
         }
-      ];
+      }
     }
 
     function calcBlockHealth(type, w, h) {
