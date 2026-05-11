@@ -440,7 +440,7 @@
       if (gameState !== 'START') {
         let targetX = 0;
         if (activeBird && activeBird.state === 'flying') {
-          targetX = activeBird.body.position.x - 1280/2;
+          targetX = activeBird.body.position.x - 1280 / 2;
         }
         targetX = constrain(targetX, 0, 1000);
         camX = lerp(camX, targetX, 0.1);
@@ -1114,7 +1114,7 @@
       else if (gameState === 'WIN') {
         fill(0, 0, 0, 150); rectMode(CORNER); rect(0, 0, 1280, 720);
         textAlign(CENTER, CENTER); textSize(80); fill(255, 200, 50); stroke(255); strokeWeight(8);
-        text("LEVEL CLEARED!", 640, 240);
+        text("LEVEL " + (currentLevel + 1) + " CLEARED!", 640, 240);
         text("SCORE: " + score, 640, 320);
         drawButton(currentLevel < levels.length - 1 ? "NEXT LEVEL" : "MAIN MENU", 640, 410, 250, 80, abs(sm.x - 640) < 125 && abs(sm.y - 410) < 40);
       }
