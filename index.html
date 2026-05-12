@@ -49,6 +49,9 @@
     let blocks = [];
     let particles = [];
     let gameBackgroundImage;
+    let butterflyImg;
+    let sunImg;
+    let butterflies = [];
 
     let slingBase;
     let dragBird = null;
@@ -64,6 +67,8 @@
 
     function preload() {
       gameBackgroundImage = loadImage('ABBackgroundWide.png');
+      butterflyImg = loadImage('Butterfly.png');
+      sunImg = loadImage('SunSingle.png');
     }
 
     function windowResized() {
@@ -85,6 +90,10 @@
 
       if (gameBackgroundImage) {
         gameBackgroundImage.resize(0, 720);
+      }
+
+      for (let i = 0; i < 3; i++) {
+        butterflies.push(new Butterfly());
       }
 
 
@@ -932,6 +941,38 @@
       // Background is now handled in drawSky for both game and editor modes.
     }
 
+    function drawSun() {
+      if (!sunImg) return;
+      push();
+      // Positioned top-right relative to screen, compensating for camX translation
+      translate(camX + 1150, 110);
+
+      let pulse = sin(frameCount * 0.025); 
+      let scaleVal = map(pulse, -1, 1, 0.9, 1.1); 
+
+      // Rotation synchronized with growth
+      let rotSpeed = map(pulse, -1, 1, 0.005, 0.015);
+      this.sunRot = (this.sunRot || 0) + rotSpeed;
+      rotate(this.sunRot);
+
+      // Gradiental Glow
+      let ctx = drawingContext;
+      let glowSize = map(pulse, -1, 1, 110, 210); // Reduced by ~20%
+      let grad = ctx.createRadialGradient(0, 0, 10, 0, 0, glowSize);
+      grad.addColorStop(0, 'rgba(255, 255, 180, 0.95)'); 
+      grad.addColorStop(0.4, 'rgba(255, 220, 0, 0.6)');  
+      grad.addColorStop(1, 'rgba(255, 150, 0, 0)');
+      
+      ctx.fillStyle = grad;
+      noStroke();
+      circle(0, 0, glowSize * 2.2);
+
+      // Sun Image - Reduced base size from 160 to 128
+      imageMode(CENTER);
+      image(sunImg, 0, 0, 128 * scaleVal, 128 * scaleVal);
+      pop();
+    }
+
     function drawButton(txt, x, y, w, h, hover) {
       push();
       rectMode(CENTER); textAlign(CENTER, CENTER); textSize(24);
@@ -984,11 +1025,60 @@
       }
     }
 
+    class Butterfly {
+      constructor() {
+        this.respawn();
+        this.x = random(0, 3000);
+        this.frame = floor(random(15));
+        this.frameTimer = 0;
+      }
+
+      respawn() {
+        this.x = camX - 200;
+        if (random() > 0.5) this.x = camX + 1280 + 200;
+        this.y = random(288, 650);
+        this.vx = random(0.5, 1.5) * (this.x < camX ? 1 : -1);
+        this.vy = random(-0.5, 0.5);
+        this.scale = 0.12;
+        this.phase = random(TWO_PI);
+      }
+
+      update() {
+        this.x += this.vx;
+        this.y += this.vy + sin(frameCount * 0.05 + this.phase) * 0.75;
+
+        this.frameTimer += 1.5;
+        if (this.frameTimer >= 4) {
+          this.frame = (this.frame + 1) % 15;
+          this.frameTimer = 0;
+        }
+
+        if (this.x < camX - 400 || this.x > camX + 1680 || this.y < 250 || this.y > 700) {
+          this.respawn();
+        }
+      }
+
+      display() {
+        if (!butterflyImg) return;
+        let fw = butterflyImg.width / 4;
+        let fh = butterflyImg.height / 4;
+        let row = floor(this.frame / 4);
+        let col = this.frame % 4;
+
+        push();
+        translate(this.x, this.y);
+        if (this.vx < 0) scale(-1, 1);
+        image(butterflyImg, -fw * this.scale / 2, -fh * this.scale / 2, fw * this.scale, fh * this.scale, col * fw, row * fh, fw, fh);
+        pop();
+      }
+    }
+
     function draw() {
       scale(scaleF);
 
       if (gameState === 'EDITOR') {
         drawSky();
+        for (let bf of butterflies) { bf.update(); bf.display(); }
         drawEdCanvas();
         drawEdToolbar();
         drawEditorUI();
@@ -1030,6 +1120,8 @@
       translate(-camX, 0);
 
       drawSky();
+      drawSun();
+      for (let bf of butterflies) { bf.update(); bf.display(); }
       drawGround();
 
       if (gameState !== 'START') {
