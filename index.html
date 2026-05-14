@@ -66,6 +66,7 @@
     let targetCamX = 0;
     let scaleF = 1;
     let levelInstanceId = 0;
+    let birdSpawnCount = 7;
 
     function preload() {
       gameBackgroundImage = loadImage('ABBackgroundWide.png');
@@ -220,6 +221,7 @@
     function loadLevel(idx) {
       levelInstanceId++;
       currentLevel = idx;
+      birdSpawnCount = 7;
 
       if (idx === 0 && gameState === 'START') {
         score = 0;
@@ -954,8 +956,8 @@
       // Positioned top-right relative to screen, compensating for camX translation
       translate(camX + 1150, 110);
 
-      let pulse = sin(frameCount * 0.025); 
-      let scaleVal = map(pulse, -1, 1, 0.9, 1.1); 
+      let pulse = sin(frameCount * 0.025);
+      let scaleVal = map(pulse, -1, 1, 0.9, 1.1);
 
       // Rotation synchronized with growth
       let rotSpeed = map(pulse, -1, 1, 0.005, 0.015);
@@ -966,10 +968,10 @@
       let ctx = drawingContext;
       let glowSize = map(pulse, -1, 1, 110, 210); // Reduced by ~20%
       let grad = ctx.createRadialGradient(0, 0, 10, 0, 0, glowSize);
-      grad.addColorStop(0, 'rgba(255, 255, 180, 0.95)'); 
-      grad.addColorStop(0.4, 'rgba(255, 220, 0, 0.6)');  
+      grad.addColorStop(0, 'rgba(255, 255, 180, 0.95)');
+      grad.addColorStop(0.4, 'rgba(255, 220, 0, 0.6)');
       grad.addColorStop(1, 'rgba(255, 150, 0, 0)');
-      
+
       ctx.fillStyle = grad;
       noStroke();
       circle(0, 0, glowSize * 2.2);
@@ -1150,6 +1152,10 @@
                 this.hitBirdType = b.type;
                 this.hitBirdRadius = b.r;
 
+                if (b.isSpawnedBird) {
+                  birdSpawnCount = 3;
+                }
+
                 // Bird disappears with splash
                 createImpactBurst(b.body.position.x, b.body.position.y, 50, b.type);
                 b.state = 'used';
@@ -1163,7 +1169,7 @@
                   }, 800);
                 }
 
-                break; 
+                break;
               }
             }
           }
@@ -1190,16 +1196,16 @@
         } else if (this.state === 'SPLASH') {
           this.splashTimer--;
           if (this.splashTimer <= 0) {
-            // Spawn 10 birds in random directions from the ground
-            for (let i = 0; i < 10; i++) {
+            // Spawn new birds in random directions from the ground
+            for (let i = 0; i < birdSpawnCount; i++) {
               let angle = random(PI, TWO_PI); // Mostly upwards
               let speed = random(10, 20);
               let r = this.hitBirdRadius;
               let density = (this.hitBirdType === 'bird_s') ? 0.005 : (this.hitBirdType === 'bird_m' ? 0.008 : 0.015);
-              
+
               let bBody = Bodies.circle(this.x, this.y - 20, r, { density: density, friction: 0.5, restitution: 0.2 });
               Body.setVelocity(bBody, { x: cos(angle) * speed, y: sin(angle) * speed });
-              let newBird = { body: bBody, type: this.hitBirdType, r: r, state: 'flying', abilityUsed: true, isBird: true };
+              let newBird = { body: bBody, type: this.hitBirdType, r: r, state: 'flying', abilityUsed: true, isBird: true, isSpawnedBird: true };
               bBody.gameObject = newBird;
               birds.push(newBird);
               World.add(world, bBody);
@@ -1212,7 +1218,7 @@
       display() {
         push();
         translate(this.x, this.y);
-        
+
         let img, fCount, curF;
         if (this.state === 'FLYING') {
           img = chickenFlyingImg;
@@ -1230,7 +1236,7 @@
           // Assuming vertical spritesheet (1 column, fCount rows)
           let fw = img.width;
           let fh = img.height / fCount;
-          
+
           if (this.state === 'SPLASH') {
             let s = map(this.splashTimer, 30, 0, 1, 2);
             let a = map(this.splashTimer, 30, 0, 255, 0);
