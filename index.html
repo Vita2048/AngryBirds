@@ -1150,6 +1150,19 @@
                 this.hitBirdType = b.type;
                 this.hitBirdRadius = b.r;
 
+                // Bird disappears with splash
+                createImpactBurst(b.body.position.x, b.body.position.y, 50, b.type);
+                b.state = 'used';
+                World.remove(world, b.body);
+                if (b === activeBird) {
+                  activeBird = null;
+                  setTimeout(() => {
+                    if (gameState === 'PLAYING' || gameState === 'WAITING_WIN' || gameState === 'WAITING_LOSE') {
+                      loadNextBird();
+                    }
+                  }, 800);
+                }
+
                 break; 
               }
             }
