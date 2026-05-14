@@ -51,7 +51,9 @@
     let gameBackgroundImage;
     let butterflyImg;
     let sunImg;
+    let chickenFlyingImg, chickenShotImg;
     let butterflies = [];
+    let chickens = [];
 
     let slingBase;
     let dragBird = null;
@@ -69,6 +71,8 @@
       gameBackgroundImage = loadImage('ABBackgroundWide.png');
       butterflyImg = loadImage('Butterfly.png');
       sunImg = loadImage('SunSingle.png');
+      chickenFlyingImg = loadImage('ChickenFlyingL.png');
+      chickenShotImg = loadImage('ChickenShotL.png');
     }
 
     function windowResized() {
@@ -94,6 +98,9 @@
 
       for (let i = 0; i < 3; i++) {
         butterflies.push(new Butterfly());
+      }
+      for (let i = 0; i < 3; i++) {
+        chickens.push(new Chicken());
       }
 
 
@@ -1073,6 +1080,138 @@
       }
     }
 
+    class Chicken {
+      constructor() {
+        this.init();
+        // Stagger initial positions for a natural look
+        this.x = random(camX, camX + 1280);
+      }
+
+      init() {
+        let fromLeft = random() > 0.5;
+        this.x = fromLeft ? camX - 100 : camX + 1380;
+        this.y = random(180, 540);
+        this.state = 'FLYING';
+        this.vx = random(1, 3) * (fromLeft ? 1 : -1);
+        this.vy = random(-1, 1);
+        this.targetY = random(180, 540);
+        this.frame = 0;
+        this.frameTimer = 0;
+        this.shotFrame = 0;
+        this.splashTimer = 0;
+        this.scale = 0.5;
+        this.directionChangeTimer = random(60, 180);
+      }
+
+      update() {
+        if (this.state === 'FLYING') {
+          this.x += this.vx;
+          this.y += this.vy;
+
+          // Randomly change direction/speed
+          this.directionChangeTimer--;
+          if (this.directionChangeTimer <= 0) {
+            this.vx = random(1, 3) * (this.vx > 0 ? 1 : -1);
+            if (random() > 0.8) this.vx *= -1; // Sometimes flip direction
+            this.vy = random(-1, 1);
+            this.targetY = random(180, 540);
+            this.directionChangeTimer = random(60, 180);
+          }
+
+          // Keep within height bounds
+          if (this.y < 180) this.vy = abs(this.vy);
+          if (this.y > 540) this.vy = -abs(this.vy);
+
+          // Animation
+          this.frameTimer++;
+          if (this.frameTimer >= 3) {
+            this.frame = (this.frame + 1) % 13;
+            this.frameTimer = 0;
+          }
+
+          // Respawn if off screen
+          if (this.vx > 0 && this.x > camX + 1500) this.init();
+          if (this.vx < 0 && this.x < camX - 500) this.init();
+
+          // Check collision with birds
+          for (let b of birds) {
+            if (b.state === 'flying') {
+              let d = dist(this.x, this.y, b.body.position.x, b.body.position.y);
+              if (d < 40) {
+                this.state = 'SHOT';
+                this.shotFrame = 0;
+                this.frameTimer = 0;
+                this.vx *= 0.5;
+                this.vy = -2; // Pop up slightly when shot
+                score += 1000;
+              }
+            }
+          }
+        } else if (this.state === 'SHOT') {
+          this.x += this.vx;
+          this.y += this.vy;
+          this.vy += 0.25; // Gravity
+
+          // Shot animation (play once and stop at last frame)
+          this.frameTimer++;
+          if (this.frameTimer >= 4) {
+            if (this.shotFrame < 7) {
+              this.shotFrame++;
+            }
+            this.frameTimer = 0;
+          }
+
+          if (this.y >= 680) {
+            this.y = 680;
+            this.state = 'SPLASH';
+            this.splashTimer = 30;
+            createImpactBurst(this.x, this.y, 40, 'bird_s');
+          }
+        } else if (this.state === 'SPLASH') {
+          this.splashTimer--;
+          if (this.splashTimer <= 0) {
+            this.init();
+          }
+        }
+      }
+
+      display() {
+        push();
+        translate(this.x, this.y);
+        
+        let img, fCount, curF;
+        if (this.state === 'FLYING') {
+          img = chickenFlyingImg;
+          fCount = 13;
+          curF = this.frame;
+          if (this.vx > 0) scale(-1, 1);
+        } else {
+          img = chickenShotImg;
+          fCount = 8;
+          curF = this.shotFrame;
+          if (this.vx > 0) scale(-1, 1);
+        }
+
+        if (img && img.width > 0) {
+          // Assuming vertical spritesheet (1 column, fCount rows)
+          let fw = img.width;
+          let fh = img.height / fCount;
+          
+          if (this.state === 'SPLASH') {
+            let s = map(this.splashTimer, 30, 0, 1, 2);
+            let a = map(this.splashTimer, 30, 0, 255, 0);
+            tint(255, a);
+            scale(s, s * 0.5);
+          }
+
+          imageMode(CENTER);
+          // image(img, dx, dy, dWidth, dHeight, sx, sy, sWidth, sHeight)
+          image(img, 0, 0, fw * this.scale, fh * this.scale, 0, curF * fh, fw, fh);
+        }
+        pop();
+      }
+    }
+
     function draw() {
       scale(scaleF);
 
@@ -1122,6 +1261,7 @@
       drawSky();
       drawSun();
       for (let bf of butterflies) { bf.update(); bf.display(); }
+      for (let c of chickens) { c.update(); c.display(); }
       drawGround();
 
       if (gameState !== 'START') {
