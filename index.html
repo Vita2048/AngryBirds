@@ -1101,6 +1101,8 @@
         this.splashTimer = 0;
         this.scale = 0.5;
         this.directionChangeTimer = random(60, 180);
+        this.hitBirdType = 'bird_s';
+        this.hitBirdRadius = 16;
       }
 
       update() {
@@ -1144,6 +1146,11 @@
                 this.vx *= 0.5;
                 this.vy = -2; // Pop up slightly when shot
                 score += 1000;
+
+                this.hitBirdType = b.type;
+                this.hitBirdRadius = b.r;
+
+                break; 
               }
             }
           }
@@ -1170,6 +1177,20 @@
         } else if (this.state === 'SPLASH') {
           this.splashTimer--;
           if (this.splashTimer <= 0) {
+            // Spawn 10 birds in random directions from the ground
+            for (let i = 0; i < 10; i++) {
+              let angle = random(PI, TWO_PI); // Mostly upwards
+              let speed = random(10, 20);
+              let r = this.hitBirdRadius;
+              let density = (this.hitBirdType === 'bird_s') ? 0.005 : (this.hitBirdType === 'bird_m' ? 0.008 : 0.015);
+              
+              let bBody = Bodies.circle(this.x, this.y - 20, r, { density: density, friction: 0.5, restitution: 0.2 });
+              Body.setVelocity(bBody, { x: cos(angle) * speed, y: sin(angle) * speed });
+              let newBird = { body: bBody, type: this.hitBirdType, r: r, state: 'flying', abilityUsed: true, isBird: true };
+              bBody.gameObject = newBird;
+              birds.push(newBird);
+              World.add(world, bBody);
+            }
             this.init();
           }
         }
