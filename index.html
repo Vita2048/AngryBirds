@@ -533,6 +533,11 @@
           dragBird = null;
           launchFrame = frameCount;
 
+          // Store the player's pull strength + direction as "launch momentum"
+          // (actual body.velocity stays tiny due to original 0.001 scaling)
+          activeBird.launchPull = { x: d.x, y: d.y };
+          activeBird.launchPower = d.mag();
+
           let launchForce = 0.001 * activeBird.body.mass;
           Body.applyForce(activeBird.body, activeBird.body.position, { x: d.x * launchForce, y: d.y * launchForce });
           Body.setAngularVelocity(activeBird.body, d.x > 0 ? 0.1 : -0.1);
@@ -1145,8 +1150,20 @@
                 this.state = 'SHOT';
                 this.shotFrame = 0;
                 this.frameTimer = 0;
-                this.vx *= 0.5;
-                this.vy = -2; // Pop up slightly when shot
+                // Much gentler, more realistic knock:
+                // Use bird's *current* direction at impact + pull strength for force.
+                // Keep most of the chicken's own velocity so it doesn't fly away unrealistically.
+                const bv = b.body.velocity;
+                const bSpeed = Math.hypot(bv.x, bv.y) || 0.1;
+                const power = (b.launchPower || 50) / 100;
+                const knock = 1.6 + power * 3.0;          // ~1.6 to ~5.2 px/frame max
+
+                const dx = bv.x / bSpeed;
+                const dy = bv.y / bSpeed;
+
+                // Blend (don't overwrite) so chicken mostly keeps its own flight
+                this.vx = this.vx * 0.15 + dx * knock;
+                this.vy = this.vy * 0.55 + dy * knock * 0.5 - 2.6;
                 score += 1000;
 
                 this.hitBirdType = b.type;
